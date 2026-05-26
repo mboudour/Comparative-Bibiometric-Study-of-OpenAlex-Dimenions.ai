@@ -1,0 +1,7 @@
+# OpenAlex credentials
+# Line 1: your contact email (required for polite pool access)
+# Line 2: your OpenAlex API key (optional — leave blank if you do not have one)
+# To request an API key visit: https://openalex.org/
+
+your_email@example.com
+YOUR_OPENALEX_API_KEY_HERE

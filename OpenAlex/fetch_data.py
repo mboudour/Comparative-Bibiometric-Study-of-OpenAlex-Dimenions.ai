@@ -1,0 +1,158 @@
+import os
+import requests
+import time
+import pandas as pd
+from urllib.parse import urlencode
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+YEAR_START = 2010
+YEAR_END = 2024
+
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Load email and optional API key from key.txt
+# Line 1: contact email (for polite pool)
+# Line 2: OpenAlex API key (optional — leave blank to skip)
+try:
+    with open("key.txt", "r") as f:
+        lines = [l.strip() for l in f.readlines() if l.strip() and not l.startswith("#")]
+        EMAIL = lines[0] if len(lines) > 0 else "your_email@example.com"
+        API_KEY = lines[1] if len(lines) > 1 and lines[1] != "YOUR_OPENALEX_API_KEY_HERE" else None
+except FileNotFoundError:
+    print("key.txt not found. Please ensure it is in the same directory.")
+    exit(1)
+
+if API_KEY:
+    print(f"Using OpenAlex API key.")
+else:
+    print("No OpenAlex API key provided. Proceeding with polite pool (email only).")
+
+# Load Journals
+try:
+    journals_df = pd.read_csv("journals.csv")
+    JOURNALS = dict(zip(journals_df['journal_name'], journals_df['openalex_id']))
+except FileNotFoundError:
+    print("journals.csv not found. Please ensure it is in the same directory.")
+    exit(1)
+
+JOURNAL_IDS = "|".join(JOURNALS.values())
+
+SELECT_FIELDS = ",".join([
+    "id",
+    "doi",
+    "title",
+    "publication_year",
+    "primary_location",
+    "authorships",
+    "referenced_works",
+    "concepts",
+    "topics"
+])
+
+# =============================================================================
+# FETCH DATA
+# =============================================================================
+def fetch_openalex_data():
+    base_url = "https://api.openalex.org/works"
+    cursor = "*"
+    all_works = []
+
+    print(f"Fetching OpenAlex data for {len(JOURNALS)} journals ({YEAR_START}-{YEAR_END})")
+
+    while cursor:
+        params = {
+            "filter": f"primary_location.source.id:{JOURNAL_IDS},publication_year:{YEAR_START}-{YEAR_END},type:article",
+            "select": SELECT_FIELDS,
+            "per-page": 200,
+            "cursor": cursor,
+            "mailto": EMAIL
+        }
+        if API_KEY:
+            params["api_key"] = API_KEY
+
+        query_string = urlencode(params, safe="*,")
+        url = f"{base_url}?{query_string}"
+
+        response = requests.get(url)
+
+        if response.status_code == 429:
+            print("Rate limit hit. Waiting 5 seconds...")
+            time.sleep(5)
+            continue
+
+        response.raise_for_status()
+        data = response.json()
+
+        results = data.get("results", [])
+        if not results:
+            break
+
+        all_works.extend(results)
+        cursor = data.get("meta", {}).get("next_cursor")
+
+        print(f"Fetched {len(all_works)} works...")
+        time.sleep(0.1)
+
+    print(f"Total works fetched: {len(all_works)}")
+
+    catalog = []
+    for w in all_works:
+        catalog.append({
+            "id": w.get("id"),
+            "doi": w.get("doi"),
+            "title": w.get("title"),
+            "year": w.get("publication_year"),
+            "journal": w.get("primary_location", {}).get("source", {}).get("display_name")
+        })
+    pd.DataFrame(catalog).to_csv(os.path.join(DATA_DIR, "openalex_nodes.csv"), index=False)
+    print("Saved openalex_nodes.csv")
+
+    process_networks(all_works)
+
+# =============================================================================
+# PROCESS NETWORKS
+# =============================================================================
+def process_networks(works):
+    coauth_edges = []
+    bib_edges = []
+    concept_edges = []
+    field_edges = []
+
+    print("Processing networks...")
+    for work in works:
+        work_id = work.get("id")
+
+        # 1. Co-authorship Edges
+        authorships = work.get("authorships", [])
+        author_ids = [a.get("author", {}).get("id") for a in authorships if a.get("author")]
+        for i in range(len(author_ids)):
+            for j in range(i + 1, len(author_ids)):
+                coauth_edges.append({"source": author_ids[i], "target": author_ids[j], "paper_id": work_id})
+
+        # 2. Bibliographic Coupling
+        refs = work.get("referenced_works", [])
+        for ref in refs:
+            bib_edges.append({"paper_id": work_id, "reference_id": ref})
+
+        # 3. Concept Co-occurrence
+        concepts = work.get("concepts", [])
+        for c in concepts:
+            if c.get("score", 0) > 0.6:
+                concept_edges.append({"paper_id": work_id, "concept_id": c.get("id"), "concept_name": c.get("display_name")})
+
+        # 4. Field Sharing (Topics)
+        topics = work.get("topics", [])
+        for t in topics:
+            field_edges.append({"paper_id": work_id, "field_id": t.get("field", {}).get("id"), "field_name": t.get("field", {}).get("display_name")})
+
+    pd.DataFrame(coauth_edges).to_csv(os.path.join(DATA_DIR, "openalex_coauth_edges.csv"), index=False)
+    pd.DataFrame(bib_edges).to_csv(os.path.join(DATA_DIR, "openalex_bib_edges.csv"), index=False)
+    pd.DataFrame(concept_edges).to_csv(os.path.join(DATA_DIR, "openalex_concept_edges.csv"), index=False)
+    pd.DataFrame(field_edges).to_csv(os.path.join(DATA_DIR, "openalex_field_edges.csv"), index=False)
+    print("Network edge lists saved to CSV in 'data' folder.")
+
+if __name__ == "__main__":
+    fetch_openalex_data()

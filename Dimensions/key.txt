@@ -1,0 +1,6 @@
+# Dimensions.ai API Key
+# Insert your Dimensions API key below (one line, no quotes).
+# To obtain a free API key, visit: https://www.dimensions.ai/contact-us/
+# or request access via the Digital Science API portal.
+
+YOUR_DIMENSIONS_API_KEY_HERE
