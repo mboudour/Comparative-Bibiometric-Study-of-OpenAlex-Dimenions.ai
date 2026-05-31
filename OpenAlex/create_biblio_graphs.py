@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import networkx as nx
 import pickle
+import math
 from itertools import combinations
 
 DATA_DIR = "data"
@@ -9,32 +10,30 @@ GRAPH_DIR = "nx_graphs"
 os.makedirs(GRAPH_DIR, exist_ok=True)
 
 # =============================================================================
-# THRESHOLD PARAMETERS
-# Adjust these values before running to control graph density.
-# The chosen values are encoded in the output filename so multiple versions
-# can coexist in nx_graphs/ without overwriting each other.
-#
-# Set any threshold to 0 to apply no filtering for that criterion.
-#
-# Indicative PyVis rendering times (modern browser, ~8 GB RAM):
-#   < 500 nodes,  < 2,000 edges  → fast       (< 10 seconds)
-#   < 2,000 nodes, < 10,000 edges → moderate  (10–60 seconds)
-#   < 5,000 nodes, < 50,000 edges → slow      (1–5 minutes)
-#   > 5,000 nodes or > 50,000 edges → may freeze or crash the browser
-#
-# Recommended starting thresholds for a corpus of ~40,000 articles:
-#   Co-authorship:          MIN_COAUTH_WEIGHT = 3,  MIN_DEGREE = 2
-#   Bibliographic Coupling: MIN_SHARED_REFS   = 5,  MIN_DEGREE = 2
-#   Concept Co-occurrence:  MIN_CONCEPT_COOC  = 10, MIN_DEGREE = 3
-#   Research Field Sharing: MIN_FIELD_COOC    = 10, MIN_DEGREE = 3
+# EXTRACTION MODE AND PARAMETERS
 # =============================================================================
+# Two extraction modes are available:
+#   "threshold" : Uses absolute edge weight and node degree cuts (legacy)
+#   "ps_core"   : Uses Ps-core decomposition based on weighted degree (recommended)
+EXTRACTION_MODE = "ps_core"  # Options: "threshold", "ps_core"
 
-MIN_COAUTH_WEIGHT = 0   # Minimum co-authored papers for a co-authorship edge
-MIN_SHARED_REFS   = 0   # Minimum shared references for a bibliographic coupling edge
-MIN_CONCEPT_COOC  = 0   # Minimum co-occurrences for a concept co-occurrence edge
-MIN_FIELD_COOC    = 0   # Minimum co-occurrences for a field sharing edge
-MIN_DEGREE        = 0   # Minimum degree applied to all graphs after edge pruning
+# Parameters for "threshold" mode:
+MIN_COAUTH_WEIGHT = 0
+MIN_SHARED_REFS   = 0
+MIN_CONCEPT_COOC  = 0
+MIN_FIELD_COOC    = 0
+MIN_DEGREE        = 0
 
+# Parameters for "ps_core" mode:
+# t is the minimum weighted degree (strength of internal collaboration)
+PS_CORE_T_COAUTH = 1.0
+PS_CORE_T_BIB    = 0.5
+PS_CORE_T_CONCEPT= 1.0
+PS_CORE_T_FIELD  = 1.0
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
 
 def apply_degree_filter(G, min_degree):
     if min_degree > 0:
@@ -42,6 +41,26 @@ def apply_degree_filter(G, min_degree):
         G = G.subgraph(nodes_to_keep).copy()
     return G
 
+def extract_ps_core(G, t):
+    """
+    Extracts the Ps-core at level t from a weighted graph G.
+    The Ps-core is the maximal subgraph where every node has a weighted degree >= t.
+    """
+    core = G.copy()
+    while True:
+        # Calculate weighted degree for all nodes in current core
+        wdeg = {n: sum(d.get('weight', 1.0) for _, _, d in core.edges(n, data=True)) 
+                for n in core.nodes()}
+        
+        # Find nodes below threshold
+        to_remove = [n for n, w in wdeg.items() if w < t]
+        
+        if not to_remove:
+            break  # All remaining nodes meet the threshold
+            
+        core.remove_nodes_from(to_remove)
+        
+    return core
 
 def save_graph(G, base_name, suffix):
     filename = f"{base_name}_{suffix}.pkl"
@@ -50,38 +69,68 @@ def save_graph(G, base_name, suffix):
         pickle.dump(G, f)
     print(f"  Saved: {filename}  (Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()})")
 
+# =============================================================================
+# GRAPH CREATION WITH NORMALIZATIONS
+# =============================================================================
 
 def create_coauthorship_graph():
-    print("Creating Co-authorship graph...")
+    print("Creating Co-authorship graph (Strict Fractional Normalization)...")
     edges_file = os.path.join(DATA_DIR, "openalex_coauth_edges.csv")
     if not os.path.exists(edges_file):
         print(f"  {edges_file} not found. Run fetch_data.py first.")
         return
 
     df = pd.read_csv(edges_file)
-    edge_weights = df.groupby(['source', 'target']).size().reset_index(name='weight')
-
-    if MIN_COAUTH_WEIGHT > 0:
-        edge_weights = edge_weights[edge_weights['weight'] >= MIN_COAUTH_WEIGHT]
+    
+    # Calculate paper degree (number of authors per paper)
+    # df has columns: paper_id, source, target (where source/target are authors)
+    # To get paper degree, we count unique authors per paper
+    # We can infer this by melting source and target
+    authors_per_paper = pd.concat([
+        df[['paper_id', 'source']].rename(columns={'source': 'author'}),
+        df[['paper_id', 'target']].rename(columns={'target': 'author'})
+    ]).drop_duplicates()
+    
+    paper_degree = authors_per_paper.groupby('paper_id').size().to_dict()
+    
+    # Apply strict fractional normalization: weight = 1 / max(1, k-1)
+    df['k'] = df['paper_id'].map(paper_degree)
+    df['norm_weight'] = 1.0 / df['k'].apply(lambda x: max(1, x - 1))
+    
+    # Aggregate normalized weights
+    edge_weights = df.groupby(['source', 'target'])['norm_weight'].sum().reset_index(name='weight')
 
     G = nx.Graph()
     for _, row in edge_weights.iterrows():
-        G.add_edge(row['source'], row['target'], weight=int(row['weight']))
+        G.add_edge(row['source'], row['target'], weight=row['weight'])
 
-    G = apply_degree_filter(G, MIN_DEGREE)
-    suffix = f"w{MIN_COAUTH_WEIGHT}_d{MIN_DEGREE}"
+    if EXTRACTION_MODE == "threshold":
+        if MIN_COAUTH_WEIGHT > 0:
+            edges_to_remove = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] < MIN_COAUTH_WEIGHT]
+            G.remove_edges_from(edges_to_remove)
+            G.remove_nodes_from(list(nx.isolates(G)))
+        G = apply_degree_filter(G, MIN_DEGREE)
+        suffix = f"norm_w{MIN_COAUTH_WEIGHT}_d{MIN_DEGREE}"
+    else:
+        G = extract_ps_core(G, PS_CORE_T_COAUTH)
+        suffix = f"norm_ps{PS_CORE_T_COAUTH}"
+        
     save_graph(G, "coauthorship", suffix)
 
 
 def create_bibliographic_coupling_graph():
-    print("Creating Bibliographic Coupling graph...")
+    print("Creating Bibliographic Coupling graph (Cosine Normalization)...")
     edges_file = os.path.join(DATA_DIR, "openalex_bib_edges.csv")
     if not os.path.exists(edges_file):
         print(f"  {edges_file} not found.")
         return
 
     df = pd.read_csv(edges_file)
-
+    
+    # Calculate reference list length for each paper
+    ref_counts = df.groupby('paper_id').size().to_dict()
+    
+    # Create bipartite graph
     B = nx.Graph()
     papers = df['paper_id'].unique()
     refs = df['reference_id'].unique()
@@ -89,26 +138,42 @@ def create_bibliographic_coupling_graph():
     B.add_nodes_from(refs, bipartite=1)
     B.add_edges_from(zip(df['paper_id'], df['reference_id']))
 
-    G = nx.bipartite.weighted_projected_graph(B, papers)
+    # Project to papers, calculating raw shared references
+    G_raw = nx.bipartite.weighted_projected_graph(B, papers)
+    
+    # Apply cosine normalization: |R_i ∩ R_j| / sqrt(|R_i| * |R_j|)
+    G = nx.Graph()
+    for u, v, data in G_raw.edges(data=True):
+        raw_weight = data['weight']
+        norm_weight = raw_weight / math.sqrt(ref_counts[u] * ref_counts[v])
+        G.add_edge(u, v, weight=norm_weight)
 
-    if MIN_SHARED_REFS > 0:
-        edges_to_remove = [(u, v) for u, v, d in G.edges(data=True) if d.get('weight', 1) < MIN_SHARED_REFS]
-        G.remove_edges_from(edges_to_remove)
-        G.remove_nodes_from(list(nx.isolates(G)))
-
-    G = apply_degree_filter(G, MIN_DEGREE)
-    suffix = f"r{MIN_SHARED_REFS}_d{MIN_DEGREE}"
+    if EXTRACTION_MODE == "threshold":
+        if MIN_SHARED_REFS > 0: # Note: this applies to normalized weight now
+            edges_to_remove = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] < MIN_SHARED_REFS]
+            G.remove_edges_from(edges_to_remove)
+            G.remove_nodes_from(list(nx.isolates(G)))
+        G = apply_degree_filter(G, MIN_DEGREE)
+        suffix = f"norm_r{MIN_SHARED_REFS}_d{MIN_DEGREE}"
+    else:
+        G = extract_ps_core(G, PS_CORE_T_BIB)
+        suffix = f"norm_ps{PS_CORE_T_BIB}"
+        
     save_graph(G, "bibliographic_coupling", suffix)
 
 
 def create_concept_cooccurrence_graph():
-    print("Creating Concept Co-occurrence graph...")
+    print("Creating Concept Co-occurrence graph (Cosine Normalization)...")
     edges_file = os.path.join(DATA_DIR, "openalex_concept_edges.csv")
     if not os.path.exists(edges_file):
         print(f"  {edges_file} not found.")
         return
 
     df = pd.read_csv(edges_file)
+    
+    # Calculate concept frequency
+    concept_freq = df.groupby('concept_name')['paper_id'].nunique().to_dict()
+    
     grouped = df.groupby('paper_id')['concept_name'].apply(list)
 
     edge_counts = {}
@@ -117,23 +182,37 @@ def create_concept_cooccurrence_graph():
             edge_counts[(c1, c2)] = edge_counts.get((c1, c2), 0) + 1
 
     G = nx.Graph()
-    for (c1, c2), weight in edge_counts.items():
-        if weight >= max(MIN_CONCEPT_COOC, 1):
-            G.add_edge(c1, c2, weight=weight)
+    for (c1, c2), raw_weight in edge_counts.items():
+        # Cosine normalization
+        norm_weight = raw_weight / math.sqrt(concept_freq[c1] * concept_freq[c2])
+        G.add_edge(c1, c2, weight=norm_weight)
 
-    G = apply_degree_filter(G, MIN_DEGREE)
-    suffix = f"c{MIN_CONCEPT_COOC}_d{MIN_DEGREE}"
+    if EXTRACTION_MODE == "threshold":
+        if MIN_CONCEPT_COOC > 0:
+            edges_to_remove = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] < MIN_CONCEPT_COOC]
+            G.remove_edges_from(edges_to_remove)
+            G.remove_nodes_from(list(nx.isolates(G)))
+        G = apply_degree_filter(G, MIN_DEGREE)
+        suffix = f"norm_c{MIN_CONCEPT_COOC}_d{MIN_DEGREE}"
+    else:
+        G = extract_ps_core(G, PS_CORE_T_CONCEPT)
+        suffix = f"norm_ps{PS_CORE_T_CONCEPT}"
+        
     save_graph(G, "concept_cooccurrence", suffix)
 
 
 def create_field_sharing_graph():
-    print("Creating Research Field Sharing graph...")
+    print("Creating Research Field Sharing graph (Cosine Normalization)...")
     edges_file = os.path.join(DATA_DIR, "openalex_field_edges.csv")
     if not os.path.exists(edges_file):
         print(f"  {edges_file} not found.")
         return
 
     df = pd.read_csv(edges_file)
+    
+    # Calculate field frequency
+    field_freq = df.groupby('field_name')['paper_id'].nunique().to_dict()
+    
     grouped = df.groupby('paper_id')['field_name'].apply(list)
 
     edge_counts = {}
@@ -142,12 +221,22 @@ def create_field_sharing_graph():
             edge_counts[(f1, f2)] = edge_counts.get((f1, f2), 0) + 1
 
     G = nx.Graph()
-    for (f1, f2), weight in edge_counts.items():
-        if weight >= max(MIN_FIELD_COOC, 1):
-            G.add_edge(f1, f2, weight=weight)
+    for (f1, f2), raw_weight in edge_counts.items():
+        # Cosine normalization
+        norm_weight = raw_weight / math.sqrt(field_freq[f1] * field_freq[f2])
+        G.add_edge(f1, f2, weight=norm_weight)
 
-    G = apply_degree_filter(G, MIN_DEGREE)
-    suffix = f"f{MIN_FIELD_COOC}_d{MIN_DEGREE}"
+    if EXTRACTION_MODE == "threshold":
+        if MIN_FIELD_COOC > 0:
+            edges_to_remove = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] < MIN_FIELD_COOC]
+            G.remove_edges_from(edges_to_remove)
+            G.remove_nodes_from(list(nx.isolates(G)))
+        G = apply_degree_filter(G, MIN_DEGREE)
+        suffix = f"norm_f{MIN_FIELD_COOC}_d{MIN_DEGREE}"
+    else:
+        G = extract_ps_core(G, PS_CORE_T_FIELD)
+        suffix = f"norm_ps{PS_CORE_T_FIELD}"
+        
     save_graph(G, "field_sharing", suffix)
 
 
@@ -156,4 +245,4 @@ if __name__ == "__main__":
     create_bibliographic_coupling_graph()
     create_concept_cooccurrence_graph()
     create_field_sharing_graph()
-    print("All OpenAlex graphs created and saved to nx_graphs/.")
+    print(f"All OpenAlex graphs created using {EXTRACTION_MODE} mode and saved to nx_graphs/.")

@@ -17,7 +17,7 @@ ComparativeBibioStudyOpenAlex&Dimenions/
 │   ├── key.txt                    ← Contact email (line 1) and optional API key (line 2)
 │   ├── journals.csv               ← 18 target journals with OpenAlex Source IDs
 │   ├── fetch_data.py              ← Step 1: Fetch publications and extract edge lists
-│   ├── create_biblio_graphs.py    ← Step 2: Build and pickle NetworkX graphs
+│   ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
 │   ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
 │   ├── data/                      ← Output: raw CSV edge lists (auto-created)
 │   ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
@@ -27,7 +27,7 @@ ComparativeBibioStudyOpenAlex&Dimenions/
     ├── key.txt                    ← Dimensions.ai API key
     ├── journals.csv               ← 18 target journals with print and electronic ISSNs
     ├── fetch_data.py              ← Step 1: Fetch publications via DSL API and extract edge lists
-    ├── create_biblio_graphs.py    ← Step 2: Build and pickle NetworkX graphs
+    ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
     ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
     ├── data/                      ← Output: raw CSV edge lists (auto-created)
     ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
@@ -63,16 +63,16 @@ ComparativeBibioStudyOpenAlex&Dimenions/
 
 ---
 
-## Four Scientometric Networks
+## Four Scientometric Networks and Normalization
 
-Each pipeline produces four network types:
+Each pipeline produces four network types. Because raw counts can be heavily biased by paper size (e.g., medical papers often have many more authors and references than scientometrics papers) or hub entities (e.g., highly frequent concepts), **fractional or cosine normalization is applied during graph creation**.
 
-| Network | Description | Node Type | Edge Criterion |
-|---|---|---|---|
-| **Co-authorship** | Authors linked by shared publications | Author | Co-authored at least one paper |
-| **Bibliographic Coupling** | Papers linked by shared references | Paper | Cite at least one common reference |
-| **Concept Co-occurrence** | Concepts linked by co-assignment to the same paper | Concept / Keyword | Appear together in at least one paper |
-| **Research Field Sharing** | Research fields linked by co-assignment to the same paper | Field / FOR Category | Co-assigned to at least one paper |
+| Network | Description | Node Type | Edge Criterion | Normalization Applied |
+|---|---|---|---|---|
+| **Co-authorship** | Authors linked by shared publications | Author | Co-authored at least one paper | **Strict Fractional** (weight += 1/max(1, k-1) per paper, where k = authors) |
+| **Bibliographic Coupling** | Papers linked by shared references | Paper | Cite at least one common reference | **Cosine** (normalized by reference list lengths) |
+| **Concept Co-occurrence** | Concepts linked by co-assignment to the same paper | Concept / Keyword | Appear together in at least one paper | **Cosine** (normalized by concept frequencies) |
+| **Research Field Sharing** | Research fields linked by co-assignment to the same paper | Field / FOR Category | Co-assigned to at least one paper | **Cosine** (normalized by field frequencies) |
 
 ---
 
@@ -162,41 +162,34 @@ Fetches all articles from the 18 target journals within the 2010–2024 window a
 
 ### `create_biblio_graphs.py`
 
-Reads the CSV edge lists and constructs four weighted NetworkX graphs, serialised as pickle files. **Threshold parameters at the top of the script** control graph density. The threshold values are encoded directly into the output filename, so multiple versions can coexist in `nx_graphs/` without overwriting each other.
+Reads the CSV edge lists and constructs four normalized NetworkX graphs, serialised as pickle files.
 
-#### Threshold Parameters
+The script offers two **Extraction Modes** to manage graph size and extract the core structure:
+1. **Ps-core Extraction (Recommended):** Extracts the maximal subgraph where every node's weighted degree is at least *t*. This is a principled, scale-invariant, data-driven approach that identifies the productive backbone of the network.
+2. **Threshold Curtailing (Legacy):** Removes edges below a fixed weight and nodes below a fixed degree.
+
+Set `EXTRACTION_MODE` at the top of the script to either `"ps_core"` or `"threshold"`.
+
+#### Ps-core Parameters (`EXTRACTION_MODE = "ps_core"`)
+
+| Parameter | Meaning | Recommended Start | Output suffix |
+|---|---|---|---|
+| `PS_CORE_T_COAUTH` | Min weighted degree (fractional papers) | `1.0` | `norm_ps1.0.pkl` |
+| `PS_CORE_T_BIB` | Min weighted degree (cosine similarity sum) | `0.5` | `norm_ps0.5.pkl` |
+| `PS_CORE_T_CONCEPT` | Min weighted degree (cosine similarity sum) | `1.0` | `norm_ps1.0.pkl` |
+| `PS_CORE_T_FIELD` | Min weighted degree (cosine similarity sum) | `1.0` | `norm_ps1.0.pkl` |
+
+#### Threshold Parameters (`EXTRACTION_MODE = "threshold"`)
 
 | Parameter | Applies to | Meaning |
 |---|---|---|
-| `MIN_COAUTH_WEIGHT` | Co-authorship | Minimum number of jointly authored papers for an edge to be kept |
-| `MIN_SHARED_REFS` | Bibliographic Coupling | Minimum number of shared references for an edge to be kept |
-| `MIN_CONCEPT_COOC` | Concept Co-occurrence | Minimum number of papers in which two concepts must co-appear |
-| `MIN_FIELD_COOC` | Research Field Sharing | Minimum number of papers in which two fields must co-appear |
+| `MIN_COAUTH_WEIGHT` | Co-authorship | Minimum normalized weight for an edge to be kept |
+| `MIN_SHARED_REFS` | Bibliographic Coupling | Minimum normalized weight for an edge to be kept |
+| `MIN_CONCEPT_COOC` | Concept Co-occurrence | Minimum normalized weight for an edge to be kept |
+| `MIN_FIELD_COOC` | Research Field Sharing | Minimum normalized weight for an edge to be kept |
 | `MIN_DEGREE` | All graphs | Minimum node degree applied after edge pruning; removes peripheral nodes |
 
-Set any parameter to `0` to apply no filtering for that criterion.
-
-#### Output Filename Convention
-
-The suffix encodes the threshold values used:
-
-| Network | Suffix format | Example |
-|---|---|---|
-| Co-authorship | `w{MIN_COAUTH_WEIGHT}_d{MIN_DEGREE}` | `coauthorship_w3_d2.pkl` |
-| Bibliographic Coupling | `r{MIN_SHARED_REFS}_d{MIN_DEGREE}` | `bibliographic_coupling_r5_d2.pkl` |
-| Concept Co-occurrence | `c{MIN_CONCEPT_COOC}_d{MIN_DEGREE}` | `concept_cooccurrence_c10_d3.pkl` |
-| Research Field Sharing | `f{MIN_FIELD_COOC}_d{MIN_DEGREE}` | `field_sharing_f10_d3.pkl` |
-
-#### Recommended Starting Thresholds
-
-For a corpus of ~40,000 articles, the following values produce graphs of a size suitable for interactive visualisation:
-
-| Network | `MIN_*` threshold | `MIN_DEGREE` | Expected size |
-|---|---|---|---|
-| Co-authorship | `MIN_COAUTH_WEIGHT = 3` | `2` | ~1,000–3,000 nodes |
-| Bibliographic Coupling | `MIN_SHARED_REFS = 5` | `2` | ~2,000–5,000 nodes |
-| Concept Co-occurrence | `MIN_CONCEPT_COOC = 10` | `3` | ~200–500 nodes |
-| Research Field Sharing | `MIN_FIELD_COOC = 10` | `3` | ~50–200 nodes |
+Set any parameter to `0` to apply no filtering for that criterion. The threshold values are encoded directly into the output filename (e.g., `norm_w3_d2.pkl`), so multiple versions can coexist in `nx_graphs/` without overwriting each other.
 
 ---
 
@@ -215,11 +208,11 @@ python visualize_biblio_graphs.py
 Pass one or more filenames to visualise **specific graphs** only:
 
 ```bash
-python visualize_biblio_graphs.py coauthorship_w3_d2.pkl
-python visualize_biblio_graphs.py coauthorship_w3_d2.pkl concept_cooccurrence_c10_d3.pkl
+python visualize_biblio_graphs.py coauthorship_norm_ps1.0.pkl
+python visualize_biblio_graphs.py coauthorship_norm_ps1.0.pkl concept_cooccurrence_norm_ps1.0.pkl
 ```
 
-The output HTML is saved to `pyvis_graphs/` with the same base name as the `.pkl` file (e.g. `coauthorship_w3_d2_vis.html`). Open any `.html` file directly in a web browser — no server required.
+The output HTML is saved to `pyvis_graphs/` with the same base name as the `.pkl` file (e.g. `coauthorship_norm_ps1.0_vis.html`). Open any `.html` file directly in a web browser — no server required.
 
 #### PyVis Performance Guidelines
 
@@ -230,7 +223,7 @@ The table below gives indicative rendering times on a modern machine with ~8 GB 
 | < 500 nodes, < 2,000 edges | Fast (< 10 seconds) | Ideal for interactive exploration |
 | < 2,000 nodes, < 10,000 edges | Moderate (10–60 seconds) | Acceptable; disable physics after layout settles |
 | < 5,000 nodes, < 50,000 edges | Slow (1–5 minutes) | Use with caution; increase thresholds if possible |
-| > 5,000 nodes or > 50,000 edges | May freeze or crash the browser | Re-run `create_biblio_graphs.py` with higher thresholds |
+| > 5,000 nodes or > 50,000 edges | May freeze or crash the browser | Re-run `create_biblio_graphs.py` with higher Ps-core thresholds |
 
 The script prints a warning if the loaded graph exceeds the safe threshold (5,000 nodes or 50,000 edges).
 
