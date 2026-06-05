@@ -93,7 +93,7 @@ def fetch_dimensions_data():
         query = f"""search publications
 where issn in {issn_list_str}
 and year in [{YEAR_START}:{YEAR_END}]
-and document_type = "Research Article"
+and type = "article"
 return publications[id+doi+title+year+journal+authors+researchers+reference_ids+concepts+concepts_scores+category_for+open_access+times_cited+field_citation_ratio]
 limit {limit} skip {skip}"""
 
