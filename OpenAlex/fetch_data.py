@@ -1,4 +1,5 @@
 import os
+import pickle
 import requests
 import time
 import pandas as pd
@@ -98,17 +99,30 @@ def fetch_openalex_data():
 
     print(f"Total works fetched: {len(all_works)}")
 
+    # -------------------------------------------------------------------------
+    # Save 1: Full raw records as a pickled DataFrame (all fetched fields)
+    # -------------------------------------------------------------------------
+    df_raw = pd.DataFrame(all_works)
+    raw_pkl_path = os.path.join(DATA_DIR, "openalex_raw.pkl")
+    with open(raw_pkl_path, "wb") as f:
+        pickle.dump(df_raw, f)
+    print(f"Saved full raw DataFrame → {raw_pkl_path}  (shape: {df_raw.shape})")
+
+    # -------------------------------------------------------------------------
+    # Save 2: Flat nodes catalog CSV (key scalar fields only)
+    # -------------------------------------------------------------------------
     catalog = []
     for w in all_works:
         catalog.append({
-            "id": w.get("id"),
-            "doi": w.get("doi"),
+            "id":    w.get("id"),
+            "doi":   w.get("doi"),
             "title": w.get("title"),
-            "year": w.get("publication_year"),
+            "year":  w.get("publication_year"),
             "journal": w.get("primary_location", {}).get("source", {}).get("display_name")
         })
-    pd.DataFrame(catalog).to_csv(os.path.join(DATA_DIR, "openalex_nodes.csv"), index=False)
-    print("Saved openalex_nodes.csv")
+    nodes_path = os.path.join(DATA_DIR, "openalex_nodes.csv")
+    pd.DataFrame(catalog).to_csv(nodes_path, index=False)
+    print(f"Saved nodes catalog → {nodes_path}")
 
     process_networks(all_works)
 

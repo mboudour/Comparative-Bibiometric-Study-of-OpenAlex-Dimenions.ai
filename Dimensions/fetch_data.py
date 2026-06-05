@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import pickle
 import requests
 import pandas as pd
 
@@ -115,8 +116,21 @@ def fetch_dimensions_data():
             "year": w.get("year"),
             "journal": w.get("journal", {}).get("title")
         })
-    pd.DataFrame(catalog).to_csv(os.path.join(DATA_DIR, "dimensions_nodes.csv"), index=False)
-    print("Saved dimensions_nodes.csv")
+    # -------------------------------------------------------------------------
+    # Save 1: Full raw records as a pickled DataFrame (all fetched fields)
+    # -------------------------------------------------------------------------
+    df_raw = pd.DataFrame(all_works)
+    raw_pkl_path = os.path.join(DATA_DIR, "dimensions_raw.pkl")
+    with open(raw_pkl_path, "wb") as f:
+        pickle.dump(df_raw, f)
+    print(f"Saved full raw DataFrame → {raw_pkl_path}  (shape: {df_raw.shape})")
+
+    # -------------------------------------------------------------------------
+    # Save 2: Flat nodes catalog CSV (key scalar fields only)
+    # -------------------------------------------------------------------------
+    nodes_path = os.path.join(DATA_DIR, "dimensions_nodes.csv")
+    pd.DataFrame(catalog).to_csv(nodes_path, index=False)
+    print(f"Saved nodes catalog → {nodes_path}")
     
     process_networks(all_works)
 
