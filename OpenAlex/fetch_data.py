@@ -27,20 +27,22 @@ except FileNotFoundError:
     exit(1)
 
 if API_KEY:
-    print(f"Using OpenAlex API key.")
+    print("Using OpenAlex API key.")
 else:
     print("No OpenAlex API key provided. Proceeding with polite pool (email only).")
 
-# Load Journals
+# Load Journals from shared top-level journals.csv
+JOURNALS_CSV = os.path.join("..", "journals.csv")
 try:
-    journals_df = pd.read_csv("journals.csv")
+    journals_df = pd.read_csv(JOURNALS_CSV)
     JOURNALS = dict(zip(journals_df['journal_name'], journals_df['openalex_id']))
 except FileNotFoundError:
-    print("journals.csv not found. Please ensure it is in the same directory.")
+    print(f"{JOURNALS_CSV} not found. Please ensure journals.csv is in the top project folder.")
     exit(1)
 
 JOURNAL_IDS = "|".join(JOURNALS.values())
 
+# All fields to fetch from OpenAlex
 SELECT_FIELDS = ",".join([
     "id",
     "doi",
@@ -166,7 +168,7 @@ def process_networks(works):
     pd.DataFrame(bib_edges).to_csv(os.path.join(DATA_DIR, "openalex_bib_edges.csv"), index=False)
     pd.DataFrame(concept_edges).to_csv(os.path.join(DATA_DIR, "openalex_concept_edges.csv"), index=False)
     pd.DataFrame(field_edges).to_csv(os.path.join(DATA_DIR, "openalex_field_edges.csv"), index=False)
-    print("Network edge lists saved to CSV in 'data' folder.")
+    print("Network edge lists saved to CSV in 'data/' folder.")
 
 if __name__ == "__main__":
     fetch_openalex_data()
