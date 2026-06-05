@@ -31,8 +31,9 @@ JOURNALS_CSV = os.path.join("..", "journals.csv")
 try:
     journals_df = pd.read_csv(JOURNALS_CSV)
     # Collect all unique ISSNs (print + electronic) for the ISSN filter
-    issns_print = journals_df['issn'].dropna().tolist()
-    issns_elec  = journals_df['issn_e'].dropna().tolist()
+    # Dimensions stores ISSNs WITHOUT hyphens (e.g. "01389130" not "0138-9130")
+    issns_print = [i.replace('-', '') for i in journals_df['issn'].dropna().tolist()]
+    issns_elec  = [i.replace('-', '') for i in journals_df['issn_e'].dropna().tolist()]
     ISSNS = list(set(issns_print + issns_elec))
 except FileNotFoundError:
     print(f"{JOURNALS_CSV} not found. Please ensure journals.csv is in the top project folder.")
@@ -82,15 +83,15 @@ def fetch_dimensions_data():
     print(f"Filtering on {len(ISSNS)} ISSNs...")
 
     while True:
-        # Correct DSL syntax:
-        # - Filter by publication-level `issn` field (not journal.issn)
-        # - document_type = "Research Article" (Dimensions capitalised values)
-        # - year range uses >= and <=
+        # DSL syntax notes:
+        # - issn field stores ISSNs WITHOUT hyphens
+        # - year range uses bracket notation: year in [2010:2024]
+        # - document_type values are title-cased: "Research Article"
+        # - reference_ids returns Dimensions pub IDs of cited works
         query = f"""
         search publications
         where issn in {issn_list_str}
-        and year >= {YEAR_START}
-        and year <= {YEAR_END}
+        and year in [{YEAR_START}:{YEAR_END}]
         and document_type = "Research Article"
         return publications[
             id + doi + title + year + journal + authors + researchers +
