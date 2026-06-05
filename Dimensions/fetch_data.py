@@ -97,11 +97,6 @@ and document_type = "Research Article"
 return publications[id+doi+title+year+journal+authors+researchers+reference_ids+concepts+concepts_scores+category_for+open_access+times_cited+field_citation_ratio]
 limit {limit} skip {skip}"""
 
-        # --- DIAGNOSTIC: print query and raw response ---
-        print("\n--- DSL QUERY ---")
-        print(query)
-        print("-----------------\n")
-
         try:
             data = query_dimensions(token, query)
         except requests.exceptions.HTTPError as e:
@@ -114,14 +109,9 @@ limit {limit} skip {skip}"""
                 break
             raise
 
-        # --- DIAGNOSTIC: print raw response summary ---
-        print("RESPONSE KEYS:", list(data.keys()))
-        print("_stats:", data.get("_stats"))
-        if data.get("errors"):
-            print("ERRORS:", data.get("errors"))
         pubs = data.get("publications", [])
         if not pubs:
-            print("No more results returned. Full response:", str(data)[:600])
+            print("No more results returned.")
             break
 
         all_works.extend(pubs)
