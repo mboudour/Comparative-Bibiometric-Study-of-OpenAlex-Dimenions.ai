@@ -50,7 +50,8 @@ def get_dimensions_token(api_key):
     return response.json().get("token")
 
 def query_dimensions(token, query):
-    url = "https://app.dimensions.ai/api/dsl/v2"
+    # Correct endpoint: /api/dsl.json (not /api/dsl/v2)
+    url = "https://app.dimensions.ai/api/dsl.json"
     headers = {"Authorization": f"JWT {token}"}
     response = requests.post(url, headers=headers, data=query.encode('utf-8'))
 
@@ -60,7 +61,7 @@ def query_dimensions(token, query):
         return query_dimensions(token, query)
 
     if not response.ok:
-        print(f"DSL error {response.status_code}: {response.text[:300]}")
+        print(f"DSL error {response.status_code}: {response.text[:500]}")
         response.raise_for_status()
 
     return response.json()
@@ -76,8 +77,9 @@ def fetch_dimensions_data():
     limit = 1000
     skip = 0
 
-    # Build ISSN list as a JSON array string for the DSL where clause
-    issn_list_str = json.dumps(ISSNS)
+    # Build ISSN list in DSL bracket notation: ["01389130","17511577",...]
+    # No spaces after commas — some DSL parsers are sensitive to whitespace in lists
+    issn_list_str = '[' + ','.join(f'"{i}"' for i in ISSNS) + ']'
 
     print(f"Fetching Dimensions data for {len(journals_df)} journals ({YEAR_START}-{YEAR_END})")
     print(f"Filtering on {len(ISSNS)} ISSNs...")
@@ -88,18 +90,12 @@ def fetch_dimensions_data():
         # - year range uses bracket notation: year in [2010:2024]
         # - document_type values are title-cased: "Research Article"
         # - reference_ids returns Dimensions pub IDs of cited works
-        query = f"""
-        search publications
-        where issn in {issn_list_str}
-        and year in [{YEAR_START}:{YEAR_END}]
-        and document_type = "Research Article"
-        return publications[
-            id + doi + title + year + journal + authors + researchers +
-            reference_ids + concepts + concepts_scores + category_for +
-            open_access + times_cited + field_citation_ratio
-        ]
-        limit {limit} skip {skip}
-        """
+        query = f"""search publications
+where issn in {issn_list_str}
+and year in [{YEAR_START}:{YEAR_END}]
+and document_type = "Research Article"
+return publications[id+doi+title+year+journal+authors+researchers+reference_ids+concepts+concepts_scores+category_for+open_access+times_cited+field_citation_ratio]
+limit {limit} skip {skip}"""
 
         try:
             data = query_dimensions(token, query)
