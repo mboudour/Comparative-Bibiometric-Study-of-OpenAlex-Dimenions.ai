@@ -125,158 +125,19 @@ Fetches all articles from the 20 target journals within the 2010–2024 window. 
 
 ## Step 2 — Graph Construction (`create_biblio_graphs.py`)
 
-Reads the CSV edge lists and constructs four normalized NetworkX graphs, serialised as pickle files in `nx_graphs/`.
-
-The script offers two **extraction modes** controlled by the `EXTRACTION_MODE` variable at the top of the file.
-
-### Mode 1: Ps-core Extraction (`EXTRACTION_MODE = "ps_core"`) — Recommended
-
-Extracts the maximal subgraph where every node's weighted degree is at least *t*. This is a principled, scale-invariant, data-driven approach that identifies the productive backbone of the network, following the Batagelj-Zaveršnik O(m) peeling algorithm.
-
-| Parameter | Applies to | Meaning | Default |
-|---|---|---|---|
-| `PS_CORE_T_COAUTH` | Co-authorship | Min weighted degree (fractional papers) | `1.0` |
-| `PS_CORE_T_BIB` | Bibliographic Coupling | Min weighted degree (cosine similarity sum) | `0.5` |
-| `PS_CORE_T_CONCEPT` | Concept Co-occurrence | Min weighted degree (cosine similarity sum) | `1.0` |
-| `PS_CORE_T_FIELD` | Research Field Sharing | Min weighted degree (cosine similarity sum) | `1.0` |
-
-Output filenames encode the threshold, e.g. `coauthorship_norm_ps1.0.pkl`.
-
-### Mode 2: Degree Threshold (`EXTRACTION_MODE = "threshold"`) — Legacy
-
-Removes edges below a fixed weight and nodes below a fixed degree count.
-
-| Parameter | Applies to | Meaning |
-|---|---|---|
-| `MIN_COAUTH_WEIGHT` | Co-authorship | Minimum normalized edge weight |
-| `MIN_SHARED_REFS` | Bibliographic Coupling | Minimum normalized edge weight |
-| `MIN_CONCEPT_COOC` | Concept Co-occurrence | Minimum normalized edge weight |
-| `MIN_FIELD_COOC` | Research Field Sharing | Minimum normalized edge weight |
-| `MIN_DEGREE` | All graphs | Minimum node degree after edge pruning |
-
-Set any parameter to `0` for no filtering. Output filenames encode the parameters, e.g. `coauthorship_w0_d0.pkl`.
+Reads the CSV edge lists and constructs four normalized NetworkX graphs, serialised as pickle files in `nx_graphs/`. The script offers two extraction modes set via `EXTRACTION_MODE` at the top of the file. The recommended mode, `"ps_core"`, extracts the maximal subgraph where every node's weighted degree meets a per-graph threshold (`PS_CORE_T_COAUTH`, `PS_CORE_T_BIB`, `PS_CORE_T_CONCEPT`, `PS_CORE_T_FIELD`), using the Batagelj-Zaveršnik O(m) peeling algorithm. The legacy mode, `"threshold"`, removes edges below fixed weight cutoffs (`MIN_COAUTH_WEIGHT`, `MIN_SHARED_REFS`, `MIN_CONCEPT_COOC`, `MIN_FIELD_COOC`) and nodes below a minimum degree (`MIN_DEGREE`). Set any parameter to `0` for no filtering. All threshold values are encoded in the output filename so multiple versions coexist safely in `nx_graphs/`.
 
 ---
 
 ## Step 3 — Finding Visualization Thresholds
 
-Two helper scripts identify the threshold values that yield a manageable number of nodes (~70–130) for interactive visualization.
-
-### `find_thresholds.py` — Weighted Degree Thresholds
-
-For each graph, computes the weighted degree of all nodes and reports the threshold values that yield approximately 130 and 70 nodes respectively.
-
-**OpenAlex results (targeting ~130 nodes):**
-
-| Graph | Threshold | Nodes |
-|---|---|---|
-| `bibliographic_coupling_norm_r0_d0.pkl` | weighted degree ≥ 154.8608 | 130 |
-| `bibliographic_coupling_r0_d0.pkl` | weighted degree ≥ 7418.0 | 130 |
-| `coauthorship_norm_w0_d0.pkl` | weighted degree ≥ 19.4639 | 129 |
-| `coauthorship_w0_d0.pkl` | weighted degree ≥ 206.0 | 132 |
-| `concept_cooccurrence_norm_c0_d0.pkl` | weighted degree ≥ 4.0 | 134 |
-| `concept_cooccurrence_c0_d0.pkl` | weighted degree ≥ 222.0 | 130 |
-| `field_sharing_f0_d0.pkl` | — | 26 (plot as-is) |
-| `field_sharing_norm_f0_d0.pkl` | — | 26 (plot as-is) |
-
-**Dimensions results (targeting ~130 nodes):**
-
-| Graph | Threshold | Nodes |
-|---|---|---|
-| `bibliographic_coupling_norm_r0_d0.pkl` | weighted degree ≥ 139.7165 | 130 |
-| `bibliographic_coupling_r0_d0.pkl` | weighted degree ≥ 7489.0 | 130 |
-| `coauthorship_norm_w0_d0.pkl` | weighted degree ≥ 22.0 | 131 |
-| `coauthorship_w0_d0.pkl` | weighted degree ≥ 3011.0 | 153 |
-| `concept_cooccurrence_norm_c0_d0.pkl` | weighted degree ≥ 730.2469 | 130 |
-| `concept_cooccurrence_c0_d0.pkl` | weighted degree ≥ 167731.0 | 130 |
-| `field_sharing_f0_d0.pkl` | — | 70 (plot as-is) |
-| `field_sharing_norm_f0_d0.pkl` | — | 70 (plot as-is) |
-
-### `find_pscore_thresholds.py` — Ps-core Thresholds
-
-Uses the Batagelj-Zaveršnik O(m) peeling algorithm to compute the full Ps-core decomposition in a single pass, then reports the threshold values yielding approximately 130 and 70 nodes.
-
-**OpenAlex results (targeting ~130 nodes):**
-
-| Graph | Ps-core threshold | Nodes |
-|---|---|---|
-| `bibliographic_coupling_norm_r0_d0.pkl` | t ≥ 48.9552 | 130 |
-| `bibliographic_coupling_r0_d0.pkl` | t ≥ 3334.0 | 130 |
-| `coauthorship_norm_w0_d0.pkl` | t ≥ 3.8333 | 130 |
-| `coauthorship_w0_d0.pkl` | t ≥ 91.0 | 139 |
-| `concept_cooccurrence_norm_c0_d0.pkl` | t ≥ 1.6592 | 130 |
-| `concept_cooccurrence_c0_d0.pkl` | t ≥ 129.0 | 131 |
-| `field_sharing_f0_d0.pkl` | — | 26 (plot as-is) |
-| `field_sharing_norm_f0_d0.pkl` | — | 26 (plot as-is) |
-
-**Dimensions results (targeting ~130 nodes):**
-
-| Graph | Ps-core threshold | Nodes |
-|---|---|---|
-| `bibliographic_coupling_norm_r0_d0.pkl` | t ≥ 39.4638 | 130 |
-| `bibliographic_coupling_r0_d0.pkl` | t ≥ 1181.0 | 130 |
-| `coauthorship_norm_w0_d0.pkl` | t ≥ 4.3333 | 131 |
-| `coauthorship_w0_d0.pkl` | t ≥ 2638.0 | 130 |
-| `concept_cooccurrence_norm_c0_d0.pkl` | t ≥ 29.0 | 132 |
-| `concept_cooccurrence_c0_d0.pkl` | t ≥ 38402.0 | 130 |
-| `field_sharing_f0_d0.pkl` | — | 70 (plot as-is) |
-| `field_sharing_norm_f0_d0.pkl` | — | 70 (plot as-is) |
+Two helper scripts identify threshold values that reduce each graph to a manageable size (~70–130 nodes) for interactive visualization. `find_thresholds.py` computes the weighted degree of all nodes and reports the cutoff values yielding approximately 130 and 70 nodes for each graph. `find_pscore_thresholds.py` uses the Batagelj-Zaveršnik O(m) peeling algorithm to compute the full Ps-core decomposition in a single pass and reports the corresponding Ps-core threshold values. Both scripts print their results to the terminal; the values are then hardcoded into `run_visualizations.py` and `run_pscore_visualizations.py` respectively.
 
 ---
 
 ## Step 4 — Visualization
 
-### `run_visualizations.py` — Degree-threshold Visualizations
-
-Generates interactive PyVis HTML files for all graphs using the weighted degree thresholds above. Run from each folder:
-
-```bash
-python run_visualizations.py
-```
-
-### `run_pscore_visualizations.py` — Ps-core Visualizations
-
-Generates interactive PyVis HTML files using Ps-core extraction at the thresholds above. Run from each folder:
-
-```bash
-python run_pscore_visualizations.py
-```
-
-### `visualize_biblio_graphs.py` — Direct Visualization with Custom Parameters
-
-For custom threshold values or single-graph visualization:
-
-```bash
-# Visualize a single graph with a specific weighted degree threshold
-python visualize_biblio_graphs.py coauthorship_norm_w0_d0.pkl --min_degree 19.46
-
-# Visualize without node labels (label shown only on hover) — useful for large graphs
-python visualize_biblio_graphs.py concept_cooccurrence_c0_d0.pkl --no_labels
-
-# Visualize all graphs in nx_graphs/ with no filtering
-python visualize_biblio_graphs.py
-```
-
-All HTML files are self-contained (JavaScript embedded inline) and open directly in any browser without a server. Each file includes a title displaying the graph type, normalization method, and threshold used.
-
-### PyVis Performance Guidelines
-
-| Graph size | Rendering time | Recommendation |
-|---|---|---|
-| < 500 nodes, < 2,000 edges | Fast (< 10 s) | Ideal for interactive exploration |
-| < 2,000 nodes, < 10,000 edges | Moderate (10–60 s) | Acceptable; disable physics after layout settles |
-| < 5,000 nodes, < 50,000 edges | Slow (1–5 min) | Use with caution |
-| > 5,000 nodes or > 50,000 edges | May freeze or crash | Increase thresholds or use VOSviewer |
-
-### VOSviewer Export (`export_to_vosviewer.py`)
-
-For large untruncated graphs, export to VOSviewer format:
-
-```bash
-python export_to_vosviewer.py
-```
-
-This writes map and network `.txt` files to `vosviewer_files/`, which can be opened directly in [VOSviewer](https://www.vosviewer.com/). VOSviewer handles graphs of hundreds of thousands of nodes efficiently and exports PNG/SVG screenshots suitable for publication.
+Two convenience scripts generate all HTML files in one command: `run_visualizations.py` uses the weighted degree thresholds and `run_pscore_visualizations.py` uses the Ps-core thresholds. For custom threshold values or single-graph visualization, `visualize_biblio_graphs.py` accepts a filename, an optional `--min_degree` argument, and an optional `--no_labels` flag that hides node labels (showing them only on hover), which is useful for larger graphs. All HTML files are self-contained with JavaScript embedded inline and open directly in any browser without a server; each includes a title displaying the graph type, normalization method, and threshold used. For large untruncated graphs that exceed browser limits, `export_to_vosviewer.py` writes map and network `.txt` files to `vosviewer_files/` for use with [VOSviewer](https://www.vosviewer.com/), which handles graphs of hundreds of thousands of nodes efficiently and exports PNG/SVG screenshots suitable for publication.
 
 ---
 
