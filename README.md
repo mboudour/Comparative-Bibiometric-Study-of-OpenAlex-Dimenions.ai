@@ -289,10 +289,66 @@ This writes map and network `.txt` files to `vosviewer_files/`, which can be ope
 
 ---
 
-## License and Copyright
+## Network Comparison Methodology
 
-Copyright © 2025 Moses Boudourides. All rights reserved.
+The core challenge in comparing OpenAlex and Dimensions is that the two databases represent the same underlying scholarly reality but produce non-identical node sets due to differences in coverage, author disambiguation (ORCID vs. Dimensions researcher IDs), concept taxonomies (OpenAlex concepts vs. Dimensions Fields of Research), and identifier standards. The comparison therefore operates at four complementary levels of analysis.
 
-This project and all associated code, data, and documentation are provided for academic research purposes. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the above copyright notice and this permission notice are retained in all copies or substantial portions of the work.
+### 1. Structural Comparison (Full Graphs, No Alignment Required)
 
-The software is provided "as is", without warranty of any kind, express or implied.
+For each of the four network types, the full untruncated graphs from both databases are compared on the following global statistics:
+
+- **Degree distribution**: log-log plots of the complementary cumulative degree distribution P(K ≥ k) for both raw and normalized graphs. A two-sample Kolmogorov-Smirnov test is used to assess whether the two distributions are statistically distinguishable.
+- **Clustering coefficient**: global and average local clustering coefficients.
+- **Assortativity**: degree assortativity coefficient (Newman, 2002), measuring whether high-degree nodes preferentially connect to other high-degree nodes.
+- **Ps-core decomposition profile**: the distribution of Ps-core levels across nodes, computed via the Batagelj-Zaveršnik O(m) peeling algorithm (Batagelj & Zaveršnik, 2003). This provides a scale-invariant fingerprint of the network's hierarchical core-periphery structure.
+
+These measures are database-agnostic and require no node alignment.
+
+### 2. Node-Aligned Comparison (Intersection of Identifiable Nodes)
+
+Where nodes can be matched across databases using persistent identifiers — ORCID for authors, DOI for papers, ROR for institutions — the comparison is extended to the aligned subgraph. On this intersection:
+
+- **Centrality rank correlation**: weighted degree centrality, betweenness centrality, and PageRank are computed for each aligned node in both databases. Spearman's ρ and Kendall's τ are reported for each centrality measure, quantifying whether the two databases agree on which entities are most central.
+- **Community structure overlap**: community detection (e.g., Louvain or label propagation) is run independently on each database's graph. The resulting partitions are compared on the aligned nodes using Normalised Mutual Information (NMI) and the Adjusted Rand Index (ARI), following Fortunato (2010).
+
+### 3. Edge Overlap Analysis
+
+For each network type, the edge sets of the two databases are compared on the aligned node intersection:
+
+- **Jaccard similarity** of the edge sets: |E_OA ∩ E_DIM| / |E_OA ∪ E_DIM|.
+- **Directed overlap**: the fraction of OA edges also present in Dimensions, and the fraction of Dimensions edges also present in OA. Asymmetry in these fractions reveals systematic coverage differences.
+- **Weight correlation**: for edges present in both databases, the Spearman correlation of edge weights quantifies whether the two databases agree not just on the existence of a link but on its strength.
+
+This approach directly quantifies coverage differences independently of node disambiguation, following the methodology of Visser, van Eck, & Waltman (2021).
+
+### 4. Bayesian Parameter Comparison via QUAP
+
+Points 1–3 provide descriptive and rank-based comparisons. Point 4 adds an uncertainty-aware, model-based comparison using Quadratic Approximation of the Posterior (QUAP), as introduced by McElreath (2020).
+
+The degree distributions of bibliometric networks are well-described by a power law P(k) ∝ k^{−α} with a lower cutoff k_min (Barabási & Albert, 1999; Clauset, Shalizi, & Newman, 2009). For each network type and each database, a power-law model is fitted to the degree sequence. QUAP approximates the posterior distribution over the exponent α by fitting a Gaussian at the mode of the log-posterior, using the maximum likelihood estimator of Clauset et al. (2009) as the starting point.
+
+The comparison then proceeds as follows:
+
+- The posterior distributions p(α | OA) and p(α | DIM) are plotted for each network type.
+- The **Bhattacharyya coefficient** BC = ∫ √(p₁(α) · p₂(α)) dα is computed as a measure of posterior overlap (BC = 1 indicates identical posteriors; BC = 0 indicates no overlap).
+- The **Kullback-Leibler divergence** D_KL(p₁ ‖ p₂) is reported as a directed measure of how much information is lost when approximating one database's degree distribution with the other's model.
+- **89% credible intervals** (following McElreath's convention) are compared: if the intervals overlap, the two databases are consistent with the same generative process at that credibility level.
+
+This Bayesian framing moves the comparison from point estimates to full uncertainty quantification, and is more informative than a KS test p-value, which conflates effect size with sample size. The Gaussian approximation underlying QUAP is reasonable for α given large samples but may be inadequate for heavy-tailed distributions; in such cases, full MCMC sampling via PyMC or Stan is recommended as a robustness check.
+
+### References
+
+- Barabási, A.-L., & Albert, R. (1999). Emergence of scaling in random networks. *Science*, 286(5439), 509–512.
+- Batagelj, V., & Zaveršnik, M. (2003). An O(m) algorithm for cores decomposition of networks. *arXiv:cs/0310049*.
+- Clauset, A., Shalizi, C. R., & Newman, M. E. J. (2009). Power-law distributions in empirical data. *SIAM Review*, 51(4), 661–703.
+- Fortunato, S. (2010). Community detection in graphs. *Physics Reports*, 486(3–5), 75–174.
+- Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
+- McElreath, R. (2020). *Statistical Rethinking: A Bayesian Course with Examples in R and Stan* (2nd ed.). CRC Press.
+- Newman, M. E. J. (2002). Assortative mixing in networks. *Physical Review Letters*, 89(20), 208701.
+- Visser, M., van Eck, N. J., & Waltman, L. (2021). Large-scale comparison of bibliographic data sources: Scopus, Web of Science, Dimensions, Crossref, and Microsoft Academic Scholar. *Quantitative Science Studies*, 2(1), 20–41.
+
+---
+
+## License
+
+Copyright (c) 2026 Moses Boudourides. This project is licensed under the MIT License — see the LICENSE file for details.
