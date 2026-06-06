@@ -162,15 +162,48 @@ def create_bibliographic_coupling_graph():
 def create_concept_cooccurrence_graph():
     print("Creating Concept Co-occurrence graph (Cosine Normalization)...")
     edges_file = os.path.join(DATA_DIR, "dimensions_concept_edges.csv")
-    if not os.path.exists(edges_file):
-        print(f"  {edges_file} not found.")
+
+    # If the CSV exists and has data, use it; otherwise rebuild from raw pkl
+    df = None
+    if os.path.exists(edges_file):
+        df = pd.read_csv(edges_file)
+        if df.empty or len(df.columns) == 0:
+            df = None
+
+    if df is None or len(df) == 0:
+        print("  concept edges CSV empty — rebuilding from dimensions_raw.pkl...")
+        raw_pkl = os.path.join(DATA_DIR, "dimensions_raw.pkl")
+        if not os.path.exists(raw_pkl):
+            print(f"  {raw_pkl} not found. Run fetch_data.py first.")
+            return
+        import pickle
+        with open(raw_pkl, "rb") as f:
+            raw_df = pickle.load(f)
+        rows = []
+        for _, work in raw_df.iterrows():
+            work_id = work.get("id")
+            concepts_scores = work.get("concepts_scores") or work.get("concepts") or []
+            if not isinstance(concepts_scores, list):
+                continue
+            for cs in concepts_scores:
+                if isinstance(cs, dict):
+                    concept_name = cs.get("concept", "")
+                else:
+                    concept_name = str(cs)
+                if concept_name:
+                    rows.append({"paper_id": work_id, "concept_id": concept_name.lower(), "concept_name": concept_name})
+        df = pd.DataFrame(rows)
+        # Save for future runs
+        df.to_csv(edges_file, index=False)
+        print(f"  Rebuilt and saved {len(df)} concept edges.")
+
+    if len(df) == 0:
+        print("  No concept edges found. Skipping.")
         return
 
-    df = pd.read_csv(edges_file)
-    
     # Calculate concept frequency
     concept_freq = df.groupby('concept_name')['paper_id'].nunique().to_dict()
-    
+
     grouped = df.groupby('paper_id')['concept_name'].apply(list)
 
     edge_counts = {}
