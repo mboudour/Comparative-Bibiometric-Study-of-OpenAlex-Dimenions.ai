@@ -45,9 +45,9 @@ def visualize_graph(pkl_filename, min_degree=0.0):
 
     # Apply degree filter if requested
     if min_degree > 0:
-        nodes_to_keep = [n for n, d in G.degree() if d >= min_degree]
+        nodes_to_keep = [n for n, d in G.degree(weight='weight') if d >= min_degree]
         G = G.subgraph(nodes_to_keep).copy()
-        print(f"  After degree filter (>= {min_degree}): Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
+        print(f"  After degree filter (weighted >= {min_degree}): Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
     else:
         print(f"  Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
 
