@@ -13,23 +13,22 @@ This project supports the study:
 ```
 ComparativeBibioStudyOpenAlex&Dimenions/
 ├── README.md
+├── journals.csv               ← 20 target journals (shared by both pipelines)
 ├── OpenAlex/
 │   ├── key.txt                    ← Contact email (line 1) and optional API key (line 2)
-│   ├── journals.csv               ← 18 target journals with OpenAlex Source IDs
 │   ├── fetch_data.py              ← Step 1: Fetch publications and extract edge lists
 │   ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
 │   ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
-│   ├── data/                      ← Output: raw CSV edge lists (auto-created)
+│   ├── data/                      ← Output: raw CSV edge lists + pickled DataFrame (auto-created)
 │   ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
 │   └── pyvis_graphs/              ← Output: interactive HTML visualizations (auto-created)
 │
 └── Dimensions/
     ├── key.txt                    ← Dimensions.ai API key
-    ├── journals.csv               ← 18 target journals with print and electronic ISSNs
     ├── fetch_data.py              ← Step 1: Fetch publications via DSL API and extract edge lists
     ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
     ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
-    ├── data/                      ← Output: raw CSV edge lists (auto-created)
+    ├── data/                      ← Output: raw CSV edge lists + pickled DataFrame (auto-created)
     ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
     └── pyvis_graphs/              ← Output: interactive HTML visualizations (auto-created)
 ```
@@ -38,28 +37,30 @@ ComparativeBibioStudyOpenAlex&Dimenions/
 
 ## Journal Corpus
 
-18 journals across three thematic clusters, covering the period **2010–2024** (~40,000–45,000 articles).
+20 journals across three thematic clusters, covering the period **2010–2024** (~45,000–50,000 articles). The full list is maintained in the shared `journals.csv` at the project root.
 
-| Journal | ISSN | Cluster |
-|---|---|---|
-| Scientometrics | 0138-9130 | Scientometrics & Informetrics |
-| Journal of Informetrics | 1751-1577 | Scientometrics & Informetrics |
-| Quantitative Science Studies | 2641-3337 | Scientometrics & Informetrics |
-| Research Evaluation | 0958-2029 | Scientometrics & Informetrics |
-| JASIST | 2330-1635 | Scientometrics & Informetrics |
-| Information Processing & Management | 0306-4573 | Information Science |
-| Journal of Information Science | 0165-5515 | Information Science |
-| Aslib Journal of Information Management | 2050-3806 | Information Science |
-| Library & Information Science Research | 0740-8188 | Information Science |
-| Online Information Review | 1468-4527 | Information Science |
-| Journal of Documentation | 0022-0418 | Information Science |
-| The Lancet Digital Health | 2589-7500 | AI in Health / Medicine |
-| npj Digital Medicine | 2398-6352 | AI in Health / Medicine |
-| Artificial Intelligence in Medicine | 0933-3657 | AI in Health / Medicine |
-| JAMIA | 1527-974X | AI in Health / Medicine |
-| Journal of Medical Internet Research | 1438-8871 | AI in Health / Medicine |
-| Journal of Biomedical Informatics | 1532-0464 | AI in Health / Medicine |
-| Digital Health | 2055-2076 | AI in Health / Medicine |
+| Journal | ISSN | Electronic ISSN | OpenAlex ID | Cluster |
+|---|---|---|---|---|
+| Scientometrics | 0138-9130 | 1588-2861 | S148561398 | Scientometrics & Informetrics |
+| Journal of Informetrics | 1751-1577 | 1875-5879 | S205292342 | Scientometrics & Informetrics |
+| Quantitative Science Studies | 2641-3337 | 2641-3337 | S4210195326 | Scientometrics & Informetrics |
+| Research Evaluation | 0958-2029 | 1471-5449 | S16793705 | Scientometrics & Informetrics |
+| JASIST | 2330-1635 | 2330-1643 | S4210197613 | Scientometrics & Informetrics |
+| Social Science Computer Review | 0894-4393 | 1552-8286 | S127118166 | Scientometrics & Informetrics |
+| Research Policy | 0048-7333 | 1873-7625 | S9731383 | Scientometrics & Informetrics |
+| Information Processing & Management | 0306-4573 | 1873-5371 | S174847851 | Information Science |
+| Journal of Information Science | 0165-5515 | 1741-6485 | S68913162 | Information Science |
+| Aslib Journal of Information Management | 2050-3806 | 2050-3806 | S4210181081 | Information Science |
+| Library & Information Science Research | 0740-8188 | 1879-1034 | S186163925 | Information Science |
+| Online Information Review | 1468-4527 | 1468-4527 | S931548824 | Information Science |
+| Journal of Documentation | 0022-0418 | 1758-7379 | S10082577 | Information Science |
+| The Lancet Digital Health | 2589-7500 | 2589-7500 | S4210237014 | AI in Health / Medicine |
+| npj Digital Medicine | 2398-6352 | 2398-6352 | S4210195431 | AI in Health / Medicine |
+| Artificial Intelligence in Medicine | 0933-3657 | 1873-2860 | S42468263 | AI in Health / Medicine |
+| JAMIA | 1527-974X | 1527-974X | S129839026 | AI in Health / Medicine |
+| Journal of Medical Internet Research | 1438-8871 | 1438-8871 | S17147534 | AI in Health / Medicine |
+| Journal of Biomedical Informatics | 1532-0464 | 1532-0480 | S11622463 | AI in Health / Medicine |
+| Digital Health | 2055-2076 | 2055-2076 | S4210188408 | AI in Health / Medicine |
 
 ---
 
@@ -142,17 +143,18 @@ python visualize_biblio_graphs.py
 
 ### `fetch_data.py`
 
-Fetches all articles from the 18 target journals within the 2010–2024 window and extracts raw edge lists for each of the four network types.
+Fetches all articles from the 20 target journals within the 2010–2024 window. Both scripts read the shared `../journals.csv` at the project root.
 
 **OpenAlex:** Uses cursor-based pagination (200 records per page) against the `/works` endpoint, filtering by `primary_location.source.id`, `publication_year`, and `type:article`. Fields fetched: `id`, `doi`, `title`, `publication_year`, `primary_location`, `authorships`, `referenced_works`, `concepts`, `topics`.
 
-**Dimensions:** Authenticates via `POST /api/auth.json` to obtain a JWT token, then issues DSL queries using `limit`/`skip` pagination, filtering by ISSN list, year range, and `type = "article"`. Fields fetched: `id`, `doi`, `title`, `year`, `journal`, `authors`, `reference_ids`, `concepts`, `category_for`.
+**Dimensions:** Authenticates via `POST /api/auth.json` to obtain a JWT token, then issues DSL queries using `limit`/`skip` pagination, filtering by ISSN list, year range, and `type = "article"`. Fields fetched: `id`, `doi`, `title`, `year`, `journal`, `authors`, `researchers`, `reference_ids`, `concepts`, `concepts_scores`, `category_for`, `open_access`, `times_cited`, `field_citation_ratio`.
 
 **Outputs to `data/`:**
 
 | File | Contents |
 |---|---|
-| `*_nodes.csv` | Full article catalog (id, doi, title, year, journal) |
+| `openalex_raw.pkl` / `dimensions_raw.pkl` | **Pickled `pd.DataFrame`** — one row per article, all fetched fields preserved as-is (nested structures intact). Load with `pickle.load(open("data/openalex_raw.pkl", "rb"))`. |
+| `*_nodes.csv` | Flat article catalog with scalar fields (id, doi, title, year, journal) |
 | `*_coauth_edges.csv` | Author–author pairs per paper |
 | `*_bib_edges.csv` | Paper–reference pairs |
 | `*_concept_edges.csv` | Paper–concept pairs |
