@@ -2,113 +2,100 @@
 find_pscore_thresholds.py
 Finds the Ps-core threshold t that yields 70–130 nodes for each graph in nx_graphs/.
 
+Uses the Batagelj-Zaveršnik O(m) peeling algorithm:
+  - Compute weighted degree for all nodes once.
+  - Peel nodes in order of increasing weighted degree, updating neighbours.
+  - Record each node's Ps-core level (its weighted degree at time of removal).
+  - Find threshold giving 70–130 nodes by a single sorted lookup.
+
 Run from the OpenAlex/ (or Dimensions/) folder:
     python find_pscore_thresholds.py
 
-Paste the output into the chat so run_pscore_visualizations.py can be written
-with the correct threshold values.
+Paste the output into the chat so run_pscore_visualizations.py can be written.
 """
 
 import os
 import pickle
-import numpy as np
 
 GRAPH_DIR = "nx_graphs"
 TARGET_MIN = 70
 TARGET_MAX = 130
-N_CANDIDATES = 200   # number of threshold candidates to sample
 
 
-def extract_ps_core(G, t, wdeg_cache=None):
-    """Maximal subgraph where every node has weighted degree >= t.
-    Uses an efficient iterative removal with a node-degree dict."""
-    # Build weighted degree dict
+def ps_core_decomposition(G):
+    """
+    Batagelj-Zaveršnik O(m) weighted core decomposition.
+    Returns a dict {node: ps_core_level} where ps_core_level is the
+    weighted degree of the node at the time it was peeled.
+    Nodes that survive to the end get the final weighted degree as their level.
+    """
+    # Build weighted adjacency as plain dicts for speed
     wdeg = {}
+    adj = {n: {} for n in G.nodes()}
     for u, v, d in G.edges(data=True):
-        w = d.get('weight', 1.0) or 1.0
-        wdeg[u] = wdeg.get(u, 0.0) + w
-        wdeg[v] = wdeg.get(v, 0.0) + w
-
-    # Start with all nodes
-    active = set(G.nodes())
-    # Build adjacency with weights for fast removal
-    adj = {n: {} for n in active}
-    for u, v, d in G.edges(data=True):
-        w = d.get('weight', 1.0) or 1.0
+        w = d.get('weight', 1.0)
+        if w is None or w != w:  # None or NaN
+            w = 1.0
         adj[u][v] = w
         adj[v][u] = w
-
-    # Iteratively remove nodes below threshold
-    queue = [n for n in active if wdeg.get(n, 0.0) < t]
-    while queue:
-        n = queue.pop()
-        if n not in active:
-            continue
-        active.remove(n)
-        for nb, w in adj[n].items():
-            if nb in active:
-                wdeg[nb] -= w
-                if wdeg[nb] < t:
-                    queue.append(nb)
-
-    return len(active)
-
-
-def find_threshold(G, fname):
-    n_full = G.number_of_nodes()
-    if n_full <= TARGET_MAX:
-        return None, n_full
-
-    print(f"  Computing weighted degrees...", flush=True)
-    # Compute weighted degree for all nodes
-    wdeg = {}
-    for u, v, d in G.edges(data=True):
-        w = d.get('weight', 1.0) or 1.0
         wdeg[u] = wdeg.get(u, 0.0) + w
         wdeg[v] = wdeg.get(v, 0.0) + w
 
-    all_wdeg = sorted(wdeg.values())
-    w_min = all_wdeg[0]
-    w_max = all_wdeg[-1]
+    core_level = {}
+    active = set(G.nodes())
 
-    # Sample N_CANDIDATES thresholds geometrically between w_min and w_max
-    if w_min <= 0:
-        w_min = 1e-9
-    candidates = np.geomspace(w_min, w_max, N_CANDIDATES).tolist()
-    candidates = sorted(set([round(c, 8) for c in candidates]))
+    # Use a simple sorted-list peeling (efficient enough for O(m) amortised)
+    import heapq
+    heap = [(wdeg.get(n, 0.0), n) for n in active]
+    heapq.heapify(heap)
 
-    print(f"  Searching {len(candidates)} threshold candidates...", flush=True)
+    in_heap = {n: True for n in active}
 
-    best_t = None
-    best_n = 0
+    while heap:
+        w, n = heapq.heappop(heap)
+        if n not in active:
+            continue
+        # Lazy deletion: skip if stale entry
+        if abs(wdeg.get(n, 0.0) - w) > 1e-12:
+            heapq.heappush(heap, (wdeg[n], n))
+            continue
+        # Peel node n
+        core_level[n] = wdeg.get(n, 0.0)
+        active.remove(n)
+        for nb, ew in adj[n].items():
+            if nb in active:
+                wdeg[nb] -= ew
+                heapq.heappush(heap, (wdeg[nb], nb))
 
-    # Binary search over candidates
-    lo, hi = 0, len(candidates) - 1
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        t = candidates[mid]
-        n = extract_ps_core(G, t)
-        if TARGET_MIN <= n <= TARGET_MAX:
-            best_t = t
-            best_n = n
-            break
-        elif n > TARGET_MAX:
-            lo = mid + 1
-        else:
-            hi = mid - 1
+    return core_level
 
-    # If not found in sampled candidates, do a fine search around the closest point
-    if best_t is None:
-        # Find the candidate where n crosses TARGET_MAX from above
-        # by scanning from high to low
-        for t in reversed(candidates):
-            n = extract_ps_core(G, t)
-            if n >= TARGET_MIN:
-                best_t = t
-                best_n = n
-                break
 
-    return best_t, best_n
+def find_threshold_for_target(core_level, target_min, target_max):
+    """Given core levels, find threshold t such that target_min <= |{n: level>=t}| <= target_max."""
+    levels = sorted(core_level.values(), reverse=True)
+    n_total = len(levels)
+
+    if n_total <= target_max:
+        return None, n_total  # plot as-is
+
+    # levels[i] is the (i+1)-th highest core level
+    # Keeping nodes with level >= levels[i] gives (i+1) nodes
+    # We want index closest to target_max
+    if len(levels) >= target_max:
+        t_max = levels[target_max - 1]
+        n_at_tmax = sum(1 for l in levels if l >= t_max)
+    else:
+        t_max = 0
+        n_at_tmax = n_total
+
+    if len(levels) >= target_min:
+        t_min = levels[target_min - 1]
+        n_at_tmin = sum(1 for l in levels if l >= t_min)
+    else:
+        t_min = 0
+        n_at_tmin = n_total
+
+    return t_max, n_at_tmax, t_min, n_at_tmin
 
 
 graphs = sorted([f for f in os.listdir(GRAPH_DIR) if f.endswith(".pkl")])
@@ -126,9 +113,13 @@ for fname in graphs:
         print(f"  {n} nodes — plot as-is (no threshold needed)")
         continue
 
-    print(f"  {n} nodes, {e} edges — searching...", flush=True)
-    t, n_result = find_threshold(G, fname)
-    if t is None:
-        print(f"  No threshold found — plot as-is ({n_result} nodes)")
+    print(f"  {n} nodes, {e} edges — decomposing...", flush=True)
+    core_level = ps_core_decomposition(G)
+
+    result = find_threshold_for_target(core_level, TARGET_MIN, TARGET_MAX)
+    if result[0] is None:
+        print(f"  No threshold needed — {result[1]} nodes")
     else:
-        print(f"  Ps-core threshold t >= {t:.6f}  →  {n_result} nodes")
+        t_max, n_at_tmax, t_min, n_at_tmin = result
+        print(f"  Ps-core threshold >= {t_max:.4f}  →  {n_at_tmax} nodes  (use for ~{TARGET_MAX} nodes)")
+        print(f"  Ps-core threshold >= {t_min:.4f}  →  {n_at_tmin} nodes  (use for ~{TARGET_MIN} nodes)")
