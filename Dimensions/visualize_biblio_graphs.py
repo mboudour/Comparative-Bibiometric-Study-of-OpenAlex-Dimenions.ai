@@ -72,9 +72,10 @@ def visualize_graph(pkl_filename, min_degree=0.0):
     if max_weight == 0:
         max_weight = 1.0
 
-    # Initialize PyVis Network — physics disabled by default for instant rendering
+    # cdn_resources="in_line" embeds all JS into the HTML — no external lib/ folder needed.
+    # This ensures the file opens correctly from any location.
     net = Network(height="800px", width="100%", bgcolor="#ffffff", font_color="black",
-                  select_menu=True, filter_menu=True)
+                  select_menu=True, filter_menu=True, cdn_resources="in_line")
 
     # Add nodes explicitly with size scaled to weighted degree
     for node in G.nodes():
