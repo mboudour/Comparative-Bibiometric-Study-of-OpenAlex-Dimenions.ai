@@ -15,7 +15,7 @@ os.makedirs(GRAPH_DIR, exist_ok=True)
 # Two extraction modes are available:
 #   "threshold" : Uses absolute edge weight and node degree cuts (legacy)
 #   "ps_core"   : Uses Ps-core decomposition based on weighted degree (recommended)
-EXTRACTION_MODE = "ps_core"  # Options: "threshold", "ps_core"
+EXTRACTION_MODE = "threshold"  # Options: "threshold", "ps_core"
 
 # Parameters for "threshold" mode:
 MIN_COAUTH_WEIGHT = 0
