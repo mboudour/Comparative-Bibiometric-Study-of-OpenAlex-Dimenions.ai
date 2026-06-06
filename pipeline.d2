@@ -1,0 +1,170 @@
+direction: down
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+journals: "journals.csv\n20 journals · 3 disciplines · 2010–2024" {
+  shape: rectangle
+  style.fill: "#E8EAF6"
+  style.stroke: "#3F51B5"
+  style.font-size: 14
+}
+
+oa: "OpenAlex\nfetch_data.py" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim: "Dimensions\nfetch_data.py" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_data: "OpenAlex/data/\nCSV edge lists + raw pickle" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_data: "Dimensions/data/\nCSV edge lists + raw pickle" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_graphs_py: "OpenAlex/create_biblio_graphs.py\nPs-core or threshold" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_graphs_py: "Dimensions/create_biblio_graphs.py\nPs-core or threshold" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_pkl: "OpenAlex/nx_graphs/\nNetworkX .pkl files" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_pkl: "Dimensions/nx_graphs/\nNetworkX .pkl files" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_thresh: "OpenAlex/find_thresholds.py\nfind_pscore_thresholds.py" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_thresh: "Dimensions/find_thresholds.py\nfind_pscore_thresholds.py" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_vis: "OpenAlex/run_visualizations.py\nrun_pscore_visualizations.py" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_vis: "Dimensions/run_visualizations.py\nrun_pscore_visualizations.py" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+oa_html: "OpenAlex/pyvis_graphs/\nInteractive HTML" {
+  shape: rectangle
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+}
+
+dim_html: "Dimensions/pyvis_graphs/\nInteractive HTML" {
+  shape: rectangle
+  style.fill: "#FFEBEE"
+  style.stroke: "#B71C1C"
+}
+
+comparison: "comparison/" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+  style.font-size: 14
+}
+
+cov: "compare_coverage.py\nNode & edge overlap · Jaccard" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+struct: "compare_structure.py\nDegree dist · clustering · assortativity" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+cent: "compare_centrality.py\nSpearman ρ · Kendall τ" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+comm: "compare_communities.py\nNMI · ARI" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+qap: "compare_qap.py\nMantel r · permutation p-value" {
+  shape: rectangle
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+}
+
+report: "Robustness Report\nAre scientometric conclusions\nstable across databases?" {
+  shape: rectangle
+  style.fill: "#E8F5E9"
+  style.stroke: "#1B5E20"
+  style.font-size: 14
+  style.bold: true
+}
+
+journals -> oa
+journals -> dim
+oa -> oa_data
+dim -> dim_data
+oa_data -> oa_graphs_py
+dim_data -> dim_graphs_py
+oa_graphs_py -> oa_pkl
+dim_graphs_py -> dim_pkl
+oa_pkl -> oa_thresh
+dim_pkl -> dim_thresh
+oa_thresh -> oa_vis
+dim_thresh -> dim_vis
+oa_vis -> oa_html
+dim_vis -> dim_html
+oa_pkl -> comparison
+dim_pkl -> comparison
+comparison -> cov
+comparison -> struct
+comparison -> cent
+comparison -> comm
+comparison -> qap
+cov -> report
+struct -> report
+cent -> report
+comm -> report
+qap -> report
