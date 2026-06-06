@@ -156,7 +156,19 @@ Two convenience scripts generate all HTML files in one command: `run_visualizati
 
 ## Network Comparison Methodology
 
-The core challenge in comparing OpenAlex and Dimensions is that the two databases represent the same underlying scholarly reality but produce non-identical node sets due to differences in coverage, author disambiguation (ORCID vs. Dimensions researcher IDs), concept taxonomies (OpenAlex concepts vs. Dimensions Fields of Research), and identifier standards. The comparison therefore operates at four complementary levels of analysis.
+### Theoretical Framing: Epistemic Infrastructures, Not Alternative Representations
+
+A foundational assumption that must be made explicit — and then problematised — is the claim that OpenAlex and Dimensions are two windows onto the same underlying scholarly system. This assumption is not self-evident. OpenAlex and Dimensions differ not only in coverage but in their indexing policies, metadata pipelines, author disambiguation systems, concept taxonomies, and citation matching algorithms. These are not incidental implementation differences; they reflect distinct epistemic choices about what counts as a publication, who counts as an author, and how concepts are defined and assigned.
+
+Consequently, differences in the resulting networks are not necessarily errors or noise. They may be manifestations of fundamentally different epistemic infrastructures — in the sense discussed by Wouters (1999) and Leydesdorff & Milojević (2015) — each constructing a partial and theory-laden representation of the scholarly record. The scientific question is therefore not "which database is correct?" but rather "how much do the conclusions a researcher would draw depend on which infrastructure they used?" This reframing is what elevates the study from a database comparison to an analysis of the robustness and reproducibility of scientometric network analysis.
+
+The comparison operates at four complementary levels of analysis.
+
+### Alignment Quality and Its Limits
+
+All node-aligned comparisons (points 2–4 below) depend critically on the quality of the identifier-based alignment. For co-authorship networks, alignment relies on ORCID, whose coverage in OpenAlex is approximately 40–60% of authors depending on field and publication year; Dimensions uses its own proprietary disambiguation system. A node that appears in both databases under the same ORCID may still represent a different set of papers if the two databases disagree on which papers that author wrote. For bibliographic coupling and concept co-occurrence networks, alignment relies on DOI and concept label matching respectively, which are generally more reliable but not immune to errors.
+
+Low agreement in QAP, centrality rank correlations, or community overlap should therefore be interpreted with caution: it may reflect genuine structural differences in the networks, or it may reflect alignment failures. To assess this, the comparison scripts report the fraction of nodes in each network that carry a persistent identifier, the fraction of those identifiers that overlap between databases, and — where possible — a sensitivity analysis restricting the comparison to high-confidence matches. This subsection of the analysis should be reported prominently in any paper derived from this pipeline, as it is the single greatest threat to the validity of the node-aligned comparisons.
 
 ### 1. Structural Comparison (Full Graphs, No Alignment Required)
 
@@ -207,6 +219,8 @@ The output reports the **Mantel correlation coefficient** (*r*) and the **permut
 - Krackhardt, D. (1988). Predicting with networks: Nonparametric multiple regression analysis of dyadic data. *Social Networks*, 10(4), 359–381.
 - Newman, M. E. J. (2002). Assortative mixing in networks. *Physical Review Letters*, 89(20), 208701.
 - Visser, M., van Eck, N. J., & Waltman, L. (2021). Large-scale comparison of bibliographic data sources: Scopus, Web of Science, Dimensions, Crossref, and Microsoft Academic Scholar. *Quantitative Science Studies*, 2(1), 20–41.
+- Wouters, P. (1999). *The Citation Culture*. PhD thesis, University of Amsterdam.
+- Leydesdorff, L., & Milojević, S. (2015). Scientometrics. In J. D. Wright (Ed.), *International Encyclopedia of the Social & Behavioral Sciences* (2nd ed., pp. 322–327). Elsevier.
 
 ---
 
