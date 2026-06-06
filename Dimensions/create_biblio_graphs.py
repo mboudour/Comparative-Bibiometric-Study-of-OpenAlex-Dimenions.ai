@@ -139,11 +139,14 @@ def create_bibliographic_coupling_graph():
     G_raw = nx.bipartite.weighted_projected_graph(B, papers)
     
     # Apply cosine normalization: |R_i ∩ R_j| / sqrt(|R_i| * |R_j|)
+    # Only keep edges where both nodes are corpus papers (have a known ref_count)
     G = nx.Graph()
     for u, v, data in G_raw.edges(data=True):
-        raw_weight = data['weight']
-        norm_weight = raw_weight / math.sqrt(ref_counts[u] * ref_counts[v])
-        G.add_edge(u, v, weight=norm_weight)
+        rc_u = ref_counts.get(u)
+        rc_v = ref_counts.get(v)
+        if rc_u and rc_v:
+            norm_weight = data['weight'] / math.sqrt(rc_u * rc_v)
+            G.add_edge(u, v, weight=norm_weight)
 
     if EXTRACTION_MODE == "threshold":
         if MIN_SHARED_REFS > 0:
