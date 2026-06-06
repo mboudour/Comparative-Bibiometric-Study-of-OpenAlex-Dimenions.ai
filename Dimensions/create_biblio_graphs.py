@@ -211,7 +211,8 @@ def create_concept_cooccurrence_graph():
 
     edge_counts = {}
     for concepts in grouped:
-        for c1, c2 in combinations(sorted(set(concepts)), 2):
+        clean = [c for c in concepts if isinstance(c, str) and c]
+        for c1, c2 in combinations(sorted(set(clean)), 2):
             edge_counts[(c1, c2)] = edge_counts.get((c1, c2), 0) + 1
 
     G = nx.Graph()
@@ -250,7 +251,8 @@ def create_field_sharing_graph():
 
     edge_counts = {}
     for fields in grouped:
-        for f1, f2 in combinations(sorted(set(fields)), 2):
+        clean = [f for f in fields if isinstance(f, str) and f]
+        for f1, f2 in combinations(sorted(set(clean)), 2):
             edge_counts[(f1, f2)] = edge_counts.get((f1, f2), 0) + 1
 
     G = nx.Graph()
