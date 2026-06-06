@@ -351,4 +351,4 @@ This Bayesian framing moves the comparison from point estimates to full uncertai
 
 ## License
 
-Copyright (c) 2026 Moses Boudourides. This project is licensed under the MIT License — see the LICENSE file for details.
+Copyright (c) 2026 Moses Boudourides. This project is licensed under the [MIT License](https://github.com/mboudour/Comparative-Bibiometric-Study-of-OpenAlex-Dimenions.ai/blob/main/LICENSE).
