@@ -106,7 +106,7 @@ To request an OpenAlex API key visit: [https://openalex.org/](https://openalex.o
 ### Dimensions.ai
 
 A Dimensions API key is required. To obtain one:
-- Visit [https://www.dimensions.ai/contact-us/](https://www.dimensions.ai/contact-us/) or request access via the [Digital Science API portal](https://www.digital-science.com/resource/dimensions-apis/).
+- Visit [https://www.dimensions.ai/](https://www.dimensions.ai/)
 
 Edit `Dimensions/key.txt`:
 ```
