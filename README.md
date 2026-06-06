@@ -1,10 +1,14 @@
-# Comparative Bibliometric Study: OpenAlex & Dimensions.ai
+# How Much Do Scientometric Conclusions Depend on the Data Source?
 
-A reproducible data collection and network analysis pipeline for comparing scientometric networks derived from the **OpenAlex** (open) and **Dimensions.ai** (proprietary) bibliographic databases.
+A reproducible data collection and network analysis pipeline for assessing the robustness of scientometric networks across bibliographic infrastructures. 
 
 This project supports the study:
 
-> *"Do Open and Proprietary Bibliographic Databases Produce Equivalent Scientometric Networks? A Comparative Study of OpenAlex and Dimensions.ai"*
+> *"How Much Do Scientometric Conclusions Depend on the Data Source? A Cross-Disciplinary Analysis of OpenAlex and Dimensions Networks in Scientometrics, Information Science, and Digital Health (2010–2024)"*
+
+The core question is not whether OpenAlex and Dimensions produce identical networks (they do not), but rather: **how stable are scientific conclusions under changes in bibliographic infrastructure?** If a researcher constructs the same corpus from both databases, do the central authors, community structures, field boundaries, and concept networks differ? This pipeline enables a formal empirical analysis of scientometric robustness.
+
+![Pipeline Diagram](pipeline.png)
 
 ---
 
@@ -182,20 +186,15 @@ For each network type, the edge sets of the two databases are compared on the al
 
 This approach directly quantifies coverage differences independently of node disambiguation, following the methodology of Visser, van Eck, & Waltman (2021).
 
-### 4. Bayesian Parameter Comparison via QUAP
+### 4. Matrix Correlation via QAP (Quadratic Assignment Procedure)
 
-Points 1–3 provide descriptive and rank-based comparisons. Point 4 adds an uncertainty-aware, model-based comparison using Quadratic Approximation of the Posterior (QUAP), as introduced by McElreath (2020).
+Points 1–3 evaluate coverage and descriptive structural similarities. Point 4 tests whether the relational structure (the pattern of connections) is statistically consistent across databases, controlling for the fact that two random sparse matrices over the same node set would share very few edges by chance.
 
-The degree distributions of bibliometric networks are well-described by a power law P(k) ∝ k^{−α} with a lower cutoff k_min (Barabási & Albert, 1999; Clauset, Shalizi, & Newman, 2009). For each network type and each database, a power-law model is fitted to the degree sequence. QUAP approximates the posterior distribution over the exponent α by fitting a Gaussian at the mode of the log-posterior, using the maximum likelihood estimator of Clauset et al. (2009) as the starting point.
+For each network type, the weighted adjacency matrices from OpenAlex and Dimensions are constructed over the aligned node intersection. The **Quadratic Assignment Procedure (QAP)** (Hubert & Schultz, 1976; Krackhardt, 1988) is then applied. QAP tests whether the two matrices are correlated beyond what would be expected by chance, by permuting the rows and columns of one matrix simultaneously (preserving its internal structure) and recomputing the correlation across thousands of permutations.
 
-The comparison then proceeds as follows:
+The output reports the **Mantel correlation coefficient** (*r*) and the **permutation p-value**. A high, significant correlation indicates that the two databases agree on who is connected to whom and how strongly. A low or non-significant correlation indicates that the databases produce structurally different networks for the same corpus.
 
-- The posterior distributions p(α | OA) and p(α | DIM) are plotted for each network type.
-- The **Bhattacharyya coefficient** BC = ∫ √(p₁(α) · p₂(α)) dα is computed as a measure of posterior overlap (BC = 1 indicates identical posteriors; BC = 0 indicates no overlap).
-- The **Kullback-Leibler divergence** D_KL(p₁ ‖ p₂) is reported as a directed measure of how much information is lost when approximating one database's degree distribution with the other's model.
-- **89% credible intervals** (following McElreath's convention) are compared: if the intervals overlap, the two databases are consistent with the same generative process at that credibility level.
-
-This Bayesian framing moves the comparison from point estimates to full uncertainty quantification, and is more informative than a KS test p-value, which conflates effect size with sample size. The Gaussian approximation underlying QUAP is reasonable for α given large samples but may be inadequate for heavy-tailed distributions; in such cases, full MCMC sampling via PyMC or Stan is recommended as a robustness check.
+**Limitation**: QAP assumes the node alignment is correct. If the persistent identifiers used for alignment (e.g., ORCID) contain disambiguation errors or omissions, the test will underestimate the true structural similarity between the databases.
 
 ### References
 
@@ -203,8 +202,9 @@ This Bayesian framing moves the comparison from point estimates to full uncertai
 - Batagelj, V., & Zaveršnik, M. (2003). An O(m) algorithm for cores decomposition of networks. *arXiv:cs/0310049*.
 - Clauset, A., Shalizi, C. R., & Newman, M. E. J. (2009). Power-law distributions in empirical data. *SIAM Review*, 51(4), 661–703.
 - Fortunato, S. (2010). Community detection in graphs. *Physics Reports*, 486(3–5), 75–174.
-- Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
-- McElreath, R. (2020). *Statistical Rethinking: A Bayesian Course with Examples in R and Stan* (2nd ed.). CRC Press.
+- Butts, C. T. (2008). Social network analysis with sna. *Journal of Statistical Software*, 24(6).
+- Hubert, L., & Schultz, J. (1976). Quadratic assignment as a general data analysis strategy. *British Journal of Mathematical and Statistical Psychology*, 29(2), 190–241.
+- Krackhardt, D. (1988). Predicting with networks: Nonparametric multiple regression analysis of dyadic data. *Social Networks*, 10(4), 359–381.
 - Newman, M. E. J. (2002). Assortative mixing in networks. *Physical Review Letters*, 89(20), 208701.
 - Visser, M., van Eck, N. J., & Waltman, L. (2021). Large-scale comparison of bibliographic data sources: Scopus, Web of Science, Dimensions, Crossref, and Microsoft Academic Scholar. *Quantitative Science Studies*, 2(1), 20–41.
 

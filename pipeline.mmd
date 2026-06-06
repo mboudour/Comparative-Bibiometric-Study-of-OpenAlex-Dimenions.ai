@@ -1,0 +1,32 @@
+flowchart TD
+    A[journals.csv\n20 journals · 3 disciplines\n2010–2024] --> B[OpenAlex\nfetch_data.py]
+    A --> C[Dimensions\nfetch_data.py]
+
+    B --> B1[data/\nCSV edge lists\n+ raw pickle]
+    C --> C1[data/\nCSV edge lists\n+ raw pickle]
+
+    B1 --> B2[create_biblio_graphs.py\nPs-core or threshold]
+    C1 --> C2[create_biblio_graphs.py\nPs-core or threshold]
+
+    B2 --> B3[nx_graphs/\nNetworkX .pkl files]
+    C2 --> C3[nx_graphs/\nNetworkX .pkl files]
+
+    B3 --> B4[find_thresholds.py\nfind_pscore_thresholds.py]
+    C3 --> C4[find_thresholds.py\nfind_pscore_thresholds.py]
+
+    B4 --> B5[run_visualizations.py\nrun_pscore_visualizations.py]
+    C4 --> C5[run_visualizations.py\nrun_pscore_visualizations.py]
+
+    B5 --> B6[pyvis_graphs/\nInteractive HTML]
+    C5 --> C6[pyvis_graphs/\nInteractive HTML]
+
+    B3 --> D[comparison/]
+    C3 --> D
+
+    D --> D1[compare_coverage.py\nNode & edge overlap · Jaccard · weight correlation]
+    D --> D2[compare_structure.py\nDegree dist · clustering · assortativity · Ps-core profile]
+    D --> D3[compare_centrality.py\nCentrality rank correlation · Spearman ρ · Kendall τ]
+    D --> D4[compare_communities.py\nCommunity detection · NMI · ARI]
+    D --> D5[compare_qap.py\nQAP permutation test · Mantel r · p-value]
+
+    D1 & D2 & D3 & D4 & D5 --> E[Robustness Report\nScientometric conclusions\nstable across databases?]
