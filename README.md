@@ -8,33 +8,6 @@ This project supports the study:
 
 ---
 
-## Project Structure
-
-```
-ComparativeBibioStudyOpenAlex&Dimenions/
-├── README.md
-├── journals.csv               ← 20 target journals (shared by both pipelines)
-├── OpenAlex/
-│   ├── key.txt                    ← Contact email (line 1) and optional API key (line 2)
-│   ├── fetch_data.py              ← Step 1: Fetch publications and extract edge lists
-│   ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
-│   ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
-│   ├── data/                      ← Output: raw CSV edge lists + pickled DataFrame (auto-created)
-│   ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
-│   └── pyvis_graphs/              ← Output: interactive HTML visualizations (auto-created)
-│
-└── Dimensions/
-    ├── key.txt                    ← Dimensions.ai API key
-    ├── fetch_data.py              ← Step 1: Fetch publications via DSL API and extract edge lists
-    ├── create_biblio_graphs.py    ← Step 2: Build, normalize, and pickle NetworkX graphs
-    ├── visualize_biblio_graphs.py ← Step 3: Generate interactive PyVis HTML visualizations
-    ├── data/                      ← Output: raw CSV edge lists + pickled DataFrame (auto-created)
-    ├── nx_graphs/                 ← Output: pickled NetworkX graph objects (auto-created)
-    └── pyvis_graphs/              ← Output: interactive HTML visualizations (auto-created)
-```
-
----
-
 ## Journal Corpus
 
 20 journals across three thematic clusters, covering the period **2010–2024** (~45,000–50,000 articles). The full list is maintained in the shared `journals.csv` at the project root.
@@ -68,18 +41,16 @@ ComparativeBibioStudyOpenAlex&Dimenions/
 
 Each pipeline produces four network types. Because raw counts can be heavily biased by paper size (e.g., medical papers often have many more authors and references than scientometrics papers) or hub entities (e.g., highly frequent concepts), **fractional or cosine normalization is applied during graph creation**.
 
-| Network | Description | Node Type | Edge Criterion | Normalization Applied |
-|---|---|---|---|---|
-| **Co-authorship** | Authors linked by shared publications | Author | Co-authored at least one paper | **Strict Fractional** (weight += 1/max(1, k-1) per paper, where k = authors) |
-| **Bibliographic Coupling** | Papers linked by shared references | Paper | Cite at least one common reference | **Cosine** (normalized by reference list lengths) |
-| **Concept Co-occurrence** | Concepts linked by co-assignment to the same paper | Concept / Keyword | Appear together in at least one paper | **Cosine** (normalized by concept frequencies) |
-| **Research Field Sharing** | Research fields linked by co-assignment to the same paper | Field / FOR Category | Co-assigned to at least one paper | **Cosine** (normalized by field frequencies) |
+| Network | Node Type | Edge Criterion | Normalization |
+|---|---|---|---|
+| **Co-authorship** | Author | Co-authored at least one paper | **Strict Fractional** (weight += 1/max(1, k−1) per paper, where k = number of authors) |
+| **Bibliographic Coupling** | Paper | Cite at least one common reference | **Cosine** (normalized by reference list lengths) |
+| **Concept Co-occurrence** | Concept / Keyword | Appear together in at least one paper | **Cosine** (normalized by concept frequencies) |
+| **Research Field Sharing** | Field / FOR Category | Co-assigned to at least one paper | **Cosine** (normalized by field frequencies) |
 
 ---
 
 ## Prerequisites
-
-Install the required Python packages before running any scripts:
 
 ```bash
 pip install requests pandas networkx pyvis
@@ -99,49 +70,39 @@ your_email@example.com
 YOUR_OPENALEX_API_KEY_HERE
 ```
 - **Line 1:** your contact email (required for polite pool)
-- **Line 2:** your OpenAlex API key (optional — leave blank or remove the line if you do not have one)
+- **Line 2:** your OpenAlex API key (optional)
 
 To request an OpenAlex API key visit: [https://openalex.org/](https://openalex.org/)
 
 ### Dimensions.ai
 
-A Dimensions API key is required. To obtain one:
-- Visit [https://www.dimensions.ai/](https://www.dimensions.ai/)
-
-Edit `Dimensions/key.txt`:
+A Dimensions API key is required. Edit `Dimensions/key.txt`:
 ```
 YOUR_DIMENSIONS_API_KEY_HERE
 ```
+To obtain a key visit: [https://www.dimensions.ai/](https://www.dimensions.ai/)
 
 ---
 
-## Running the Pipeline
+## Pipeline
 
-Run the three scripts in sequence from within each subfolder. **Always `cd` into the subfolder first**, as all paths are relative.
-
-### OpenAlex
+Run the scripts in sequence from within each subfolder. **Always `cd` into the subfolder first**, as all paths are relative.
 
 ```bash
 cd OpenAlex
 python fetch_data.py
 python create_biblio_graphs.py
-python visualize_biblio_graphs.py
+python find_thresholds.py          # optional: find degree thresholds for ~130 nodes
+python find_pscore_thresholds.py   # optional: find Ps-core thresholds for ~130 nodes
+python run_visualizations.py       # degree-threshold visualizations
+python run_pscore_visualizations.py  # Ps-core visualizations
 ```
 
-### Dimensions
-
-```bash
-cd Dimensions
-python fetch_data.py
-python create_biblio_graphs.py
-python visualize_biblio_graphs.py
-```
+Repeat identically from the `Dimensions/` folder.
 
 ---
 
-## Script Details
-
-### `fetch_data.py`
+## Step 1 — Data Fetching (`fetch_data.py`)
 
 Fetches all articles from the 20 target journals within the 2010–2024 window. Both scripts read the shared `../journals.csv` at the project root.
 
@@ -153,8 +114,8 @@ Fetches all articles from the 20 target journals within the 2010–2024 window. 
 
 | File | Contents |
 |---|---|
-| `openalex_raw.pkl` / `dimensions_raw.pkl` | **Pickled `pd.DataFrame`** — one row per article, all fetched fields preserved as-is (nested structures intact). Load with `pickle.load(open("data/openalex_raw.pkl", "rb"))`. |
-| `*_nodes.csv` | Flat article catalog with scalar fields (id, doi, title, year, journal) |
+| `openalex_raw.pkl` / `dimensions_raw.pkl` | Pickled `pd.DataFrame` — one row per article, all fetched fields preserved |
+| `*_nodes.csv` | Flat article catalog (id, doi, title, year, journal) |
 | `*_coauth_edges.csv` | Author–author pairs per paper |
 | `*_bib_edges.csv` | Paper–reference pairs |
 | `*_concept_edges.csv` | Paper–concept pairs |
@@ -162,77 +123,176 @@ Fetches all articles from the 20 target journals within the 2010–2024 window. 
 
 ---
 
-### `create_biblio_graphs.py`
+## Step 2 — Graph Construction (`create_biblio_graphs.py`)
 
-Reads the CSV edge lists and constructs four normalized NetworkX graphs, serialised as pickle files.
+Reads the CSV edge lists and constructs four normalized NetworkX graphs, serialised as pickle files in `nx_graphs/`.
 
-The script offers two **Extraction Modes** to manage graph size and extract the core structure:
-1. **Ps-core Extraction (Recommended):** Extracts the maximal subgraph where every node's weighted degree is at least *t*. This is a principled, scale-invariant, data-driven approach that identifies the productive backbone of the network.
-2. **Threshold Curtailing (Legacy):** Removes edges below a fixed weight and nodes below a fixed degree.
+The script offers two **extraction modes** controlled by the `EXTRACTION_MODE` variable at the top of the file.
 
-Set `EXTRACTION_MODE` at the top of the script to either `"ps_core"` or `"threshold"`.
+### Mode 1: Ps-core Extraction (`EXTRACTION_MODE = "ps_core"`) — Recommended
 
-#### Ps-core Parameters (`EXTRACTION_MODE = "ps_core"`)
+Extracts the maximal subgraph where every node's weighted degree is at least *t*. This is a principled, scale-invariant, data-driven approach that identifies the productive backbone of the network, following the Batagelj-Zaveršnik O(m) peeling algorithm.
 
-| Parameter | Meaning | Recommended Start | Output suffix |
+| Parameter | Applies to | Meaning | Default |
 |---|---|---|---|
-| `PS_CORE_T_COAUTH` | Min weighted degree (fractional papers) | `1.0` | `norm_ps1.0.pkl` |
-| `PS_CORE_T_BIB` | Min weighted degree (cosine similarity sum) | `0.5` | `norm_ps0.5.pkl` |
-| `PS_CORE_T_CONCEPT` | Min weighted degree (cosine similarity sum) | `1.0` | `norm_ps1.0.pkl` |
-| `PS_CORE_T_FIELD` | Min weighted degree (cosine similarity sum) | `1.0` | `norm_ps1.0.pkl` |
+| `PS_CORE_T_COAUTH` | Co-authorship | Min weighted degree (fractional papers) | `1.0` |
+| `PS_CORE_T_BIB` | Bibliographic Coupling | Min weighted degree (cosine similarity sum) | `0.5` |
+| `PS_CORE_T_CONCEPT` | Concept Co-occurrence | Min weighted degree (cosine similarity sum) | `1.0` |
+| `PS_CORE_T_FIELD` | Research Field Sharing | Min weighted degree (cosine similarity sum) | `1.0` |
 
-#### Threshold Parameters (`EXTRACTION_MODE = "threshold"`)
+Output filenames encode the threshold, e.g. `coauthorship_norm_ps1.0.pkl`.
+
+### Mode 2: Degree Threshold (`EXTRACTION_MODE = "threshold"`) — Legacy
+
+Removes edges below a fixed weight and nodes below a fixed degree count.
 
 | Parameter | Applies to | Meaning |
 |---|---|---|
-| `MIN_COAUTH_WEIGHT` | Co-authorship | Minimum normalized weight for an edge to be kept |
-| `MIN_SHARED_REFS` | Bibliographic Coupling | Minimum normalized weight for an edge to be kept |
-| `MIN_CONCEPT_COOC` | Concept Co-occurrence | Minimum normalized weight for an edge to be kept |
-| `MIN_FIELD_COOC` | Research Field Sharing | Minimum normalized weight for an edge to be kept |
-| `MIN_DEGREE` | All graphs | Minimum node degree applied after edge pruning; removes peripheral nodes |
+| `MIN_COAUTH_WEIGHT` | Co-authorship | Minimum normalized edge weight |
+| `MIN_SHARED_REFS` | Bibliographic Coupling | Minimum normalized edge weight |
+| `MIN_CONCEPT_COOC` | Concept Co-occurrence | Minimum normalized edge weight |
+| `MIN_FIELD_COOC` | Research Field Sharing | Minimum normalized edge weight |
+| `MIN_DEGREE` | All graphs | Minimum node degree after edge pruning |
 
-Set any parameter to `0` to apply no filtering for that criterion. The threshold values are encoded directly into the output filename (e.g., `norm_w3_d2.pkl`), so multiple versions can coexist in `nx_graphs/` without overwriting each other.
+Set any parameter to `0` for no filtering. Output filenames encode the parameters, e.g. `coauthorship_w0_d0.pkl`.
 
 ---
 
-### `visualize_biblio_graphs.py`
+## Step 3 — Finding Visualization Thresholds
 
-Loads pickled NetworkX graphs and renders them as self-contained interactive HTML files using **PyVis**, with a white background and all interactive controls enabled (physics simulation, node styling, edge styling).
+Two helper scripts identify the threshold values that yield a manageable number of nodes (~70–130) for interactive visualization.
 
-#### Targeting Specific Graphs
+### `find_thresholds.py` — Weighted Degree Thresholds
 
-Run without arguments to visualise **all** `.pkl` files currently in `nx_graphs/`:
+For each graph, computes the weighted degree of all nodes and reports the threshold values that yield approximately 130 and 70 nodes respectively.
+
+**OpenAlex results (targeting ~130 nodes):**
+
+| Graph | Threshold | Nodes |
+|---|---|---|
+| `bibliographic_coupling_norm_r0_d0.pkl` | weighted degree ≥ 154.8608 | 130 |
+| `bibliographic_coupling_r0_d0.pkl` | weighted degree ≥ 7418.0 | 130 |
+| `coauthorship_norm_w0_d0.pkl` | weighted degree ≥ 19.4639 | 129 |
+| `coauthorship_w0_d0.pkl` | weighted degree ≥ 206.0 | 132 |
+| `concept_cooccurrence_norm_c0_d0.pkl` | weighted degree ≥ 4.0 | 134 |
+| `concept_cooccurrence_c0_d0.pkl` | weighted degree ≥ 222.0 | 130 |
+| `field_sharing_f0_d0.pkl` | — | 26 (plot as-is) |
+| `field_sharing_norm_f0_d0.pkl` | — | 26 (plot as-is) |
+
+**Dimensions results (targeting ~130 nodes):**
+
+| Graph | Threshold | Nodes |
+|---|---|---|
+| `bibliographic_coupling_norm_r0_d0.pkl` | weighted degree ≥ 139.7165 | 130 |
+| `bibliographic_coupling_r0_d0.pkl` | weighted degree ≥ 7489.0 | 130 |
+| `coauthorship_norm_w0_d0.pkl` | weighted degree ≥ 22.0 | 131 |
+| `coauthorship_w0_d0.pkl` | weighted degree ≥ 3011.0 | 153 |
+| `concept_cooccurrence_norm_c0_d0.pkl` | weighted degree ≥ 730.2469 | 130 |
+| `concept_cooccurrence_c0_d0.pkl` | weighted degree ≥ 167731.0 | 130 |
+| `field_sharing_f0_d0.pkl` | — | 70 (plot as-is) |
+| `field_sharing_norm_f0_d0.pkl` | — | 70 (plot as-is) |
+
+### `find_pscore_thresholds.py` — Ps-core Thresholds
+
+Uses the Batagelj-Zaveršnik O(m) peeling algorithm to compute the full Ps-core decomposition in a single pass, then reports the threshold values yielding approximately 130 and 70 nodes.
+
+**OpenAlex results (targeting ~130 nodes):**
+
+| Graph | Ps-core threshold | Nodes |
+|---|---|---|
+| `bibliographic_coupling_norm_r0_d0.pkl` | t ≥ 48.9552 | 130 |
+| `bibliographic_coupling_r0_d0.pkl` | t ≥ 3334.0 | 130 |
+| `coauthorship_norm_w0_d0.pkl` | t ≥ 3.8333 | 130 |
+| `coauthorship_w0_d0.pkl` | t ≥ 91.0 | 139 |
+| `concept_cooccurrence_norm_c0_d0.pkl` | t ≥ 1.6592 | 130 |
+| `concept_cooccurrence_c0_d0.pkl` | t ≥ 129.0 | 131 |
+| `field_sharing_f0_d0.pkl` | — | 26 (plot as-is) |
+| `field_sharing_norm_f0_d0.pkl` | — | 26 (plot as-is) |
+
+**Dimensions results (targeting ~130 nodes):**
+
+| Graph | Ps-core threshold | Nodes |
+|---|---|---|
+| `bibliographic_coupling_norm_r0_d0.pkl` | t ≥ 39.4638 | 130 |
+| `bibliographic_coupling_r0_d0.pkl` | t ≥ 1181.0 | 130 |
+| `coauthorship_norm_w0_d0.pkl` | t ≥ 4.3333 | 131 |
+| `coauthorship_w0_d0.pkl` | t ≥ 2638.0 | 130 |
+| `concept_cooccurrence_norm_c0_d0.pkl` | t ≥ 29.0 | 132 |
+| `concept_cooccurrence_c0_d0.pkl` | t ≥ 38402.0 | 130 |
+| `field_sharing_f0_d0.pkl` | — | 70 (plot as-is) |
+| `field_sharing_norm_f0_d0.pkl` | — | 70 (plot as-is) |
+
+---
+
+## Step 4 — Visualization
+
+### `run_visualizations.py` — Degree-threshold Visualizations
+
+Generates interactive PyVis HTML files for all graphs using the weighted degree thresholds above. Run from each folder:
 
 ```bash
+python run_visualizations.py
+```
+
+### `run_pscore_visualizations.py` — Ps-core Visualizations
+
+Generates interactive PyVis HTML files using Ps-core extraction at the thresholds above. Run from each folder:
+
+```bash
+python run_pscore_visualizations.py
+```
+
+### `visualize_biblio_graphs.py` — Direct Visualization with Custom Parameters
+
+For custom threshold values or single-graph visualization:
+
+```bash
+# Visualize a single graph with a specific weighted degree threshold
+python visualize_biblio_graphs.py coauthorship_norm_w0_d0.pkl --min_degree 19.46
+
+# Visualize without node labels (label shown only on hover) — useful for large graphs
+python visualize_biblio_graphs.py concept_cooccurrence_c0_d0.pkl --no_labels
+
+# Visualize all graphs in nx_graphs/ with no filtering
 python visualize_biblio_graphs.py
 ```
 
-Pass one or more filenames to visualise **specific graphs** only:
+All HTML files are self-contained (JavaScript embedded inline) and open directly in any browser without a server. Each file includes a title displaying the graph type, normalization method, and threshold used.
 
-```bash
-python visualize_biblio_graphs.py coauthorship_norm_ps1.0.pkl
-python visualize_biblio_graphs.py coauthorship_norm_ps1.0.pkl concept_cooccurrence_norm_ps1.0.pkl
-```
-
-The output HTML is saved to `pyvis_graphs/` with the same base name as the `.pkl` file (e.g. `coauthorship_norm_ps1.0_vis.html`). Open any `.html` file directly in a web browser — no server required.
-
-#### PyVis Performance Guidelines
-
-The table below gives indicative rendering times on a modern machine with ~8 GB RAM. These are approximate and depend on browser, hardware, and physics simulation settings.
+### PyVis Performance Guidelines
 
 | Graph size | Rendering time | Recommendation |
 |---|---|---|
-| < 500 nodes, < 2,000 edges | Fast (< 10 seconds) | Ideal for interactive exploration |
-| < 2,000 nodes, < 10,000 edges | Moderate (10–60 seconds) | Acceptable; disable physics after layout settles |
-| < 5,000 nodes, < 50,000 edges | Slow (1–5 minutes) | Use with caution; increase thresholds if possible |
-| > 5,000 nodes or > 50,000 edges | May freeze or crash the browser | Re-run `create_biblio_graphs.py` with higher Ps-core thresholds |
+| < 500 nodes, < 2,000 edges | Fast (< 10 s) | Ideal for interactive exploration |
+| < 2,000 nodes, < 10,000 edges | Moderate (10–60 s) | Acceptable; disable physics after layout settles |
+| < 5,000 nodes, < 50,000 edges | Slow (1–5 min) | Use with caution |
+| > 5,000 nodes or > 50,000 edges | May freeze or crash | Increase thresholds or use VOSviewer |
 
-The script prints a warning if the loaded graph exceeds the safe threshold (5,000 nodes or 50,000 edges).
+### VOSviewer Export (`export_to_vosviewer.py`)
+
+For large untruncated graphs, export to VOSviewer format:
+
+```bash
+python export_to_vosviewer.py
+```
+
+This writes map and network `.txt` files to `vosviewer_files/`, which can be opened directly in [VOSviewer](https://www.vosviewer.com/). VOSviewer handles graphs of hundreds of thousands of nodes efficiently and exports PNG/SVG screenshots suitable for publication.
 
 ---
 
 ## Notes
 
-- The Dimensions DSL API imposes a pagination ceiling (typically 50,000 records via `skip`). If the corpus exceeds this limit, the script will stop gracefully and report the total fetched.
-- All output directories (`data/`, `nx_graphs/`, `pyvis_graphs/`) are created automatically on first run.
-- Multiple versions of the same graph type (produced with different thresholds) coexist safely in `nx_graphs/` thanks to the stamped filename convention.
+- The Dimensions DSL API imposes a pagination ceiling (typically 50,000 records via `skip`). If the corpus exceeds this limit, the script stops gracefully and reports the total fetched.
+- All output directories (`data/`, `nx_graphs/`, `pyvis_graphs/`, `vosviewer_files/`) are created automatically on first run.
+- Multiple versions of the same graph type produced with different thresholds coexist safely in `nx_graphs/` thanks to the stamped filename convention.
+- The `find_pscore_thresholds.py` script uses the Batagelj-Zaveršnik O(m) peeling algorithm and completes in seconds even for graphs with hundreds of thousands of nodes and tens of millions of edges.
+
+---
+
+## License and Copyright
+
+Copyright © 2025 Moses Boudourides. All rights reserved.
+
+This project and all associated code, data, and documentation are provided for academic research purposes. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the above copyright notice and this permission notice are retained in all copies or substantial portions of the work.
+
+The software is provided "as is", without warranty of any kind, express or implied.
