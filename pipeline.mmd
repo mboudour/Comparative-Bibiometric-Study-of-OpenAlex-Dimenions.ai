@@ -1,32 +1,39 @@
+%%{init: {'theme': 'default', 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 60}}}%%
 flowchart TD
-    A[journals.csv\n20 journals · 3 disciplines\n2010–2024] --> B[OpenAlex\nfetch_data.py]
-    A --> C[Dimensions\nfetch_data.py]
+    A["📄 journals.csv\n20 journals · 3 disciplines\n2010–2024"]
 
-    B --> B1[data/\nCSV edge lists\n+ raw pickle]
-    C --> C1[data/\nCSV edge lists\n+ raw pickle]
+    A --> B["🔵 OpenAlex\nfetch_data.py"]
+    A --> C["🔴 Dimensions\nfetch_data.py"]
 
-    B1 --> B2[create_biblio_graphs.py\nPs-core or threshold]
-    C1 --> C2[create_biblio_graphs.py\nPs-core or threshold]
+    B --> B1["data/\nCSV edge lists + raw pickle"]
+    C --> C1["data/\nCSV edge lists + raw pickle"]
 
-    B2 --> B3[nx_graphs/\nNetworkX .pkl files]
-    C2 --> C3[nx_graphs/\nNetworkX .pkl files]
+    B1 --> B2["create_biblio_graphs.py\nPs-core or threshold"]
+    C1 --> C2["create_biblio_graphs.py\nPs-core or threshold"]
 
-    B3 --> B4[find_thresholds.py\nfind_pscore_thresholds.py]
-    C3 --> C4[find_thresholds.py\nfind_pscore_thresholds.py]
+    B2 --> B3["nx_graphs/\nNetworkX .pkl files"]
+    C2 --> C3["nx_graphs/\nNetworkX .pkl files"]
 
-    B4 --> B5[run_visualizations.py\nrun_pscore_visualizations.py]
-    C4 --> C5[run_visualizations.py\nrun_pscore_visualizations.py]
+    B3 --> B4["find_thresholds.py\nfind_pscore_thresholds.py"]
+    C3 --> C4["find_thresholds.py\nfind_pscore_thresholds.py"]
 
-    B5 --> B6[pyvis_graphs/\nInteractive HTML]
-    C5 --> C6[pyvis_graphs/\nInteractive HTML]
+    B4 --> B5["run_visualizations.py\nrun_pscore_visualizations.py"]
+    C4 --> C5["run_visualizations.py\nrun_pscore_visualizations.py"]
 
-    B3 --> D[comparison/]
-    C3 --> D
+    B5 --> B6["pyvis_graphs/\nInteractive HTML"]
+    C5 --> C6["pyvis_graphs/\nInteractive HTML"]
 
-    D --> D1[compare_coverage.py\nNode & edge overlap · Jaccard · weight correlation]
-    D --> D2[compare_structure.py\nDegree dist · clustering · assortativity · Ps-core profile]
-    D --> D3[compare_centrality.py\nCentrality rank correlation · Spearman ρ · Kendall τ]
-    D --> D4[compare_communities.py\nCommunity detection · NMI · ARI]
-    D --> D5[compare_qap.py\nQAP permutation test · Mantel r · p-value]
+    B3 --> CMP["comparison/"]
+    C3 --> CMP
 
-    D1 & D2 & D3 & D4 & D5 --> E[Robustness Report\nScientometric conclusions\nstable across databases?]
+    CMP --> D1["compare_coverage.py\nNode & edge overlap · Jaccard"]
+    CMP --> D2["compare_structure.py\nDegree dist · clustering · assortativity"]
+    CMP --> D3["compare_centrality.py\nSpearman ρ · Kendall τ"]
+    CMP --> D4["compare_communities.py\nNMI · ARI"]
+    CMP --> D5["compare_qap.py\nMantel r · permutation p-value"]
+
+    D1 --> E["📊 Robustness Report\nAre scientometric conclusions\nstable across databases?"]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    D5 --> E
