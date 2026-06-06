@@ -72,10 +72,11 @@ def visualize_graph(pkl_filename, min_degree=0.0):
     if max_weight == 0:
         max_weight = 1.0
 
-    # cdn_resources="in_line" embeds all JS into the HTML — no external lib/ folder needed.
-    # This ensures the file opens correctly from any location.
+    # cdn_resources="in_line" embeds all JS — no broken lib/ path.
+    # select_menu and filter_menu are disabled to avoid the JS crash caused by
+    # options.configure being undefined when show_buttons() is used.
     net = Network(height="800px", width="100%", bgcolor="#ffffff", font_color="black",
-                  select_menu=True, filter_menu=True, cdn_resources="in_line")
+                  cdn_resources="in_line")
 
     # Add nodes explicitly with size scaled to weighted degree
     for node in G.nodes():
@@ -92,11 +93,14 @@ def visualize_graph(pkl_filename, min_degree=0.0):
         width = 0.5 + 4.5 * (w / max_weight)
         net.add_edge(u, v, value=float(w), width=width, title=f"weight: {w:.4f}")
 
-    net.show_buttons(filter_=['physics', 'nodes', 'edges'])
-
-    # Disable physics by default so graph renders immediately; user can enable via panel
+    # Physics disabled by default — graph renders immediately as static layout.
+    # configure panel enabled so user can adjust physics/nodes/edges interactively.
     net.set_options("""
     {
+      "configure": {
+        "enabled": true,
+        "filter": ["physics", "nodes", "edges"]
+      },
       "physics": {
         "enabled": false
       }
