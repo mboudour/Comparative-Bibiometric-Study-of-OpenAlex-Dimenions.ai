@@ -186,7 +186,9 @@ def process_networks(works):
         # 3. Concept Co-occurrence
         # Dimensions returns concepts_scores as [{"concept": ..., "relevance": ...}]
         # We only need concept names for the co-occurrence network — no score filtering.
-        concepts_scores = work.get("concepts_scores", []) or work.get("concepts", [])
+        concepts_scores = work.get("concepts_scores") or work.get("concepts") or []
+        if not isinstance(concepts_scores, list):
+            concepts_scores = []
         for cs in concepts_scores:
             if isinstance(cs, dict):
                 concept_name = cs.get("concept", "")
@@ -196,7 +198,9 @@ def process_networks(works):
                 concept_edges.append({"paper_id": work_id, "concept_id": concept_name.lower(), "concept_name": concept_name})
 
         # 4. Field Sharing (FOR categories)
-        categories = work.get("category_for", [])
+        categories = work.get("category_for") or []
+        if not isinstance(categories, list):
+            categories = []
         for cat in categories:
             if isinstance(cat, dict):
                 field_edges.append({"paper_id": work_id, "field_id": cat.get("id"), "field_name": cat.get("name")})
