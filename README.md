@@ -1,6 +1,6 @@
 # How Much Do Scientometric Conclusions Depend on the Data Source?
 
-[![Streamlit App](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)](https://comparative-bibiometric-study-of-openalex-dimenionsai.streamlit.app/)
+**Interactive Network Visualizations:** [![Streamlit App](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)](https://comparative-bibiometric-study-of-openalex-dimenionsai.streamlit.app/) [Open Streamlit App →](https://comparative-bibiometric-study-of-openalex-dimenionsai.streamlit.app/)
 
 A reproducible data collection and network analysis pipeline for assessing the robustness of scientometric networks across bibliographic infrastructures. 
 
