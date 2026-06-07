@@ -5,6 +5,12 @@ import pickle
 import networkx as nx
 from pyvis.network import Network
 
+try:
+    import pygraphviz  # noqa: F401
+    HAS_PYGRAPHVIZ = True
+except ImportError:
+    HAS_PYGRAPHVIZ = False
+
 GRAPH_DIR = "nx_graphs"
 VIS_DIR = "pyvis_graphs"
 os.makedirs(VIS_DIR, exist_ok=True)
@@ -107,18 +113,42 @@ def visualize_graph(pkl_filename, min_degree=0.0, no_labels=False):
     # Weighted degree for hover tooltip
     w_degrees = dict(G.degree(weight='weight'))
 
+    # Compute layout positions using pygraphviz neato (Graphviz force-directed)
+    # Falls back to NetworkX spring_layout if pygraphviz is not available.
+    if HAS_PYGRAPHVIZ:
+        pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
+    else:
+        pos = nx.spring_layout(G, seed=42)
+
+    # Scale positions to a 1000x1000 canvas for PyVis
+    xs = [p[0] for p in pos.values()]
+    ys = [p[1] for p in pos.values()]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    x_range = (x_max - x_min) or 1.0
+    y_range = (y_max - y_min) or 1.0
+    scale = 1000.0
+    pos_scaled = {
+        n: ((pos[n][0] - x_min) / x_range * scale - scale / 2,
+            (pos[n][1] - y_min) / y_range * scale - scale / 2)
+        for n in pos
+    }
+
     # cdn_resources="in_line" embeds all JS — no broken lib/ path.
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="black",
                   cdn_resources="in_line")
 
-    # Add nodes — constant size, label hidden if --no_labels
+    # Add nodes — constant size, fixed positions from graphviz layout
     for node in G.nodes():
         wdeg = w_degrees.get(node, 0)
         node_label = "" if no_labels else str(node)
+        x, y = pos_scaled.get(node, (0, 0))
         net.add_node(node,
                      label=node_label,
                      title=f"{node}\nWeighted degree: {wdeg:.4f}",
-                     size=NODE_SIZE)
+                     size=NODE_SIZE,
+                     x=x, y=y,
+                     physics=False)
 
     # Add edges with width scaled to weight
     for u, v, data in G.edges(data=True):

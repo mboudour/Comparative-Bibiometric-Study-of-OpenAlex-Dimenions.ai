@@ -3,11 +3,11 @@ run_pscore_visualizations.py  —  Dimensions
 Generates PyVis HTML visualisations for normalized graphs only.
 
 Extraction method per graph type:
-  - field_sharing:            full graph (70 nodes, no threshold needed)
+  - field_sharing:            full graph (26 nodes, no threshold needed)
   - co-authorship:            Ps-core (Batagelj-Zaveršnik) at ~70 nodes
   - bibliographic_coupling:   degree threshold at ~130 nodes
-                              (Ps-core has a cliff: 666 nodes at t=100,
-                               17 nodes at t=200 — no threshold gives ~70 nodes)
+                              (Ps-core has a cliff: 1096 nodes at t=100,
+                               31 nodes at t=200 — no threshold gives ~70 nodes)
   - concept_cooccurrence:     Ps-core (Batagelj-Zaveršnik) at ~70 nodes
 
 Run from the Dimensions/ folder:
@@ -17,7 +17,14 @@ Run from the Dimensions/ folder:
 import os
 import pickle
 import heapq
+import networkx as nx
 from pyvis.network import Network
+
+try:
+    import pygraphviz  # noqa: F401
+    HAS_PYGRAPHVIZ = True
+except ImportError:
+    HAS_PYGRAPHVIZ = False
 
 GRAPH_DIR = "nx_graphs"
 VIS_DIR   = "pyvis_graphs"
@@ -132,15 +139,37 @@ def visualize(pkl_filename, threshold, method, graph_type_label, norm_label):
     w_degrees = {node: sum(d.get('weight', 1.0) or 1.0 for _, _, d in G.edges(node, data=True))
                  for node in G.nodes()}
 
+    # Compute layout using pygraphviz neato; fall back to spring_layout
+    if HAS_PYGRAPHVIZ:
+        pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
+    else:
+        pos = nx.spring_layout(G, seed=42)
+
+    xs = [p[0] for p in pos.values()]
+    ys = [p[1] for p in pos.values()]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    x_range = (x_max - x_min) or 1.0
+    y_range = (y_max - y_min) or 1.0
+    scale = 1000.0
+    pos_scaled = {
+        n: ((pos[n][0] - x_min) / x_range * scale - scale / 2,
+            (pos[n][1] - y_min) / y_range * scale - scale / 2)
+        for n in pos
+    }
+
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="black",
                   cdn_resources="in_line")
 
     for node in G.nodes():
         wd = w_degrees.get(node, 0)
+        x, y = pos_scaled.get(node, (0, 0))
         net.add_node(node,
                      label=str(node),
                      title=f"{node}\nWeighted degree: {wd:.4f}",
-                     size=NODE_SIZE)
+                     size=NODE_SIZE,
+                     x=x, y=y,
+                     physics=False)
 
     for u, v, data in G.edges(data=True):
         w = data.get('weight', 1.0)
