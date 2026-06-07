@@ -30,7 +30,7 @@ GRAPH_DIR = "nx_graphs"
 VIS_DIR   = "pyvis_graphs"
 os.makedirs(VIS_DIR, exist_ok=True)
 
-NODE_SIZE = 15  # constant size for all nodes
+NODE_SIZE = 5  # constant size for all nodes
 
 # Each entry: (pkl_filename, threshold, method, graph_type_label, norm_label)
 # method: "pscore" or "degree"

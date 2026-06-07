@@ -15,7 +15,7 @@ GRAPH_DIR = "nx_graphs"
 VIS_DIR = "pyvis_graphs"
 os.makedirs(VIS_DIR, exist_ok=True)
 
-NODE_SIZE = 15  # constant node size for all graphs
+NODE_SIZE = 5  # constant node size for all graphs
 
 # =============================================================================
 # USAGE
