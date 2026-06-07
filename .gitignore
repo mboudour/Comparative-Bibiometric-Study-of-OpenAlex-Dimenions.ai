@@ -1,0 +1,5 @@
+*.pkl
+__pycache__/
+*.pyc
+.DS_Store
+nx_graphs/
