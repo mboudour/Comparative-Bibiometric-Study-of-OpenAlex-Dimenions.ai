@@ -7,15 +7,12 @@ Run from the Dimensions/ folder:
 
 from visualize_biblio_graphs import visualize_graph
 
+# Normalized graphs only — raw graphs excluded (too dense for browser visualization)
 JOBS = [
-    ("field_sharing_f0_d0.pkl",                      0),
     ("field_sharing_norm_f0_d0.pkl",                 0),
     ("coauthorship_norm_w0_d0.pkl",               22.0),
-    ("coauthorship_w0_d0.pkl",                  3011.0),
     ("bibliographic_coupling_norm_r0_d0.pkl",   139.7165),
-    ("bibliographic_coupling_r0_d0.pkl",        7489.0),
     ("concept_cooccurrence_norm_c0_d0.pkl",     730.2469),
-    ("concept_cooccurrence_c0_d0.pkl",        167731.0),
 ]
 
 if __name__ == "__main__":

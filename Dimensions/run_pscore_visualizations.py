@@ -18,17 +18,13 @@ os.makedirs(VIS_DIR, exist_ok=True)
 
 NODE_SIZE = 15  # constant size for all nodes
 
-# Ps-core thresholds targeting ~70 nodes (from find_pscore_thresholds.py)
+# Ps-core thresholds targeting ~70 nodes — normalized graphs only (from find_pscore_thresholds.py)
 PSCORE_CONFIGS = [
     # (pkl_filename,                          ps_threshold,  graph_type_label,          norm_label)
-    ("field_sharing_f0_d0.pkl",               0.0,    "Research Field Sharing Network",   "Raw"),
     ("field_sharing_norm_f0_d0.pkl",          0.0,    "Research Field Sharing Network",   "Normalized"),
     ("coauthorship_norm_w0_d0.pkl",           5.5333, "Co-authorship Network",            "Normalized"),
-    ("coauthorship_w0_d0.pkl",                2698.0, "Co-authorship Network",            "Raw"),
     ("bibliographic_coupling_norm_r0_d0.pkl", 39.6311,"Bibliographic Coupling Network",   "Normalized"),
-    ("bibliographic_coupling_r0_d0.pkl",      1184.0, "Bibliographic Coupling Network",   "Raw"),
     ("concept_cooccurrence_norm_c0_d0.pkl",   31.0,   "Concept Co-occurrence Network",    "Normalized"),
-    ("concept_cooccurrence_c0_d0.pkl",        41104.0,"Concept Co-occurrence Network",    "Raw"),
 ]
 
 

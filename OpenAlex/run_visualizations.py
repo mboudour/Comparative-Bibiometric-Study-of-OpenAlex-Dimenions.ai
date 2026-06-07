@@ -7,15 +7,12 @@ Run from the OpenAlex/ folder:
 
 from visualize_biblio_graphs import visualize_graph
 
+# Normalized graphs only — raw graphs excluded (too dense for browser visualization)
 JOBS = [
-    ("field_sharing_f0_d0.pkl",                      0),
     ("field_sharing_norm_f0_d0.pkl",                 0),
     ("coauthorship_norm_w0_d0.pkl",              19.4639),
-    ("coauthorship_w0_d0.pkl",                   206.0),
     ("bibliographic_coupling_norm_r0_d0.pkl",   154.8608),
-    ("bibliographic_coupling_r0_d0.pkl",        7418.0),
     ("concept_cooccurrence_norm_c0_d0.pkl",        4.0),
-    ("concept_cooccurrence_c0_d0.pkl",           222.0),
 ]
 
 if __name__ == "__main__":
