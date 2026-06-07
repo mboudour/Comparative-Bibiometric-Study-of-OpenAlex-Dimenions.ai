@@ -62,7 +62,7 @@ def make_title(pkl_filename, min_degree):
     return f"{graph_type} — {norm}{threshold_str}"
 
 
-def visualize_graph(pkl_filename, min_degree=0.0, no_labels=False):
+def visualize_graph(pkl_filename, min_degree=0.0, no_labels=True):
     pkl_path = os.path.join(GRAPH_DIR, pkl_filename)
     if not os.path.exists(pkl_path):
         print(f"  File not found: {pkl_path} — skipping.")
@@ -165,6 +165,11 @@ def visualize_graph(pkl_filename, min_degree=0.0, no_labels=False):
         "enabled": true,
         "filter": ["physics", "nodes", "edges"]
       },
+      "nodes": {
+        "font": {
+          "size": 0
+        }
+      },
       "physics": {
         "enabled": false
       }
@@ -178,6 +183,15 @@ def visualize_graph(pkl_filename, min_degree=0.0, no_labels=False):
     title_html = (
         f'<h2 style="font-family:Arial,sans-serif;text-align:center;'
         f'margin:10px 0 4px 0;font-size:16px;color:#333;">{title}</h2>\n'
+    )
+    # Hide node labels: patch the options JSON inside the drawGraph function
+    # so font size is 0 before the network is ever drawn.
+    import re
+    # Find the options = {...} block inside drawGraph and inject font size 0
+    html = re.sub(
+        r'(var options = \{)',
+        r'\1\n    "nodes": {"font": {"size": 0, "color": "rgba(0,0,0,0)"}},',
+        html
     )
     html = html.replace("<body>", "<body>\n" + title_html, 1)
     with open(html_path, "w", encoding="utf-8") as f:

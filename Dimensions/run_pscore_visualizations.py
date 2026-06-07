@@ -1,5 +1,5 @@
 """
-run_pscore_visualizations.py  —  Dimensions
+run_pscore_visualizations.py  —  OpenAlex
 Generates PyVis HTML visualisations for normalized graphs only.
 
 Extraction method per graph type:
@@ -10,7 +10,7 @@ Extraction method per graph type:
                                31 nodes at t=200 — no threshold gives ~70 nodes)
   - concept_cooccurrence:     Ps-core (Batagelj-Zaveršnik) at ~70 nodes
 
-Run from the Dimensions/ folder:
+Run from the OpenAlex/ folder:
     python run_pscore_visualizations.py
 """
 
@@ -36,9 +36,9 @@ NODE_SIZE = 5  # constant size for all nodes
 # method: "pscore" or "degree"
 CONFIGS = [
     ("field_sharing_norm_f0_d0.pkl",          0.0,      "pscore",  "Research Field Sharing Network",  "Normalized"),
-    ("coauthorship_norm_w0_d0.pkl",           5.5333,   "pscore",  "Co-authorship Network",           "Normalized"),
-    ("bibliographic_coupling_norm_r0_d0.pkl", 139.7165, "degree",  "Bibliographic Coupling Network",  "Normalized"),
-    ("concept_cooccurrence_norm_c0_d0.pkl",   31.0,     "pscore",  "Concept Co-occurrence Network",   "Normalized"),
+    ("coauthorship_norm_w0_d0.pkl",           4.8167,   "pscore",  "Co-authorship Network",           "Normalized"),
+    ("bibliographic_coupling_norm_r0_d0.pkl", 154.8608, "degree",  "Bibliographic Coupling Network",  "Normalized"),
+    ("concept_cooccurrence_norm_c0_d0.pkl",   2.0,      "pscore",  "Concept Co-occurrence Network",   "Normalized"),
 ]
 
 
@@ -165,7 +165,7 @@ def visualize(pkl_filename, threshold, method, graph_type_label, norm_label):
         wd = w_degrees.get(node, 0)
         x, y = pos_scaled.get(node, (0, 0))
         net.add_node(node,
-                     label=str(node),
+                     label="",
                      title=f"{node}\nWeighted degree: {wd:.4f}",
                      size=NODE_SIZE,
                      x=x, y=y,
@@ -184,6 +184,11 @@ def visualize(pkl_filename, threshold, method, graph_type_label, norm_label):
         "enabled": true,
         "filter": ["physics", "nodes", "edges"]
       },
+      "nodes": {
+        "font": {
+          "size": 0
+        }
+      },
       "physics": {
         "enabled": false
       }
@@ -197,6 +202,12 @@ def visualize(pkl_filename, threshold, method, graph_type_label, norm_label):
     title_html = (
         f'<h2 style="font-family:Arial,sans-serif;text-align:center;'
         f'margin:10px 0 4px 0;font-size:16px;color:#333;">{title}</h2>\n'
+    )
+    import re
+    html = re.sub(
+        r'(var options = \{)',
+        r'\1\n    "nodes": {"font": {"size": 0, "color": "rgba(0,0,0,0)"}},',
+        html
     )
     html = html.replace("<body>", "<body>\n" + title_html, 1)
     with open(html_path, "w", encoding="utf-8") as f:
