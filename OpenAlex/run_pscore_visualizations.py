@@ -18,17 +18,17 @@ os.makedirs(VIS_DIR, exist_ok=True)
 
 NODE_SIZE = 15  # constant size for all nodes
 
-# Ps-core thresholds targeting ~130 nodes (from find_pscore_thresholds.py)
+# Ps-core thresholds targeting ~70 nodes (from find_pscore_thresholds.py)
 PSCORE_CONFIGS = [
     # (pkl_filename,                          ps_threshold,  graph_type_label,          norm_label)
-    ("field_sharing_f0_d0.pkl",               0.0,  "Research Field Sharing Network",     "Raw"),
-    ("field_sharing_norm_f0_d0.pkl",          0.0,  "Research Field Sharing Network",     "Normalized"),
-    ("coauthorship_norm_w0_d0.pkl",           3.8333, "Co-authorship Network",            "Normalized"),
-    ("coauthorship_w0_d0.pkl",                91.0,   "Co-authorship Network",            "Raw"),
-    ("bibliographic_coupling_norm_r0_d0.pkl", 48.9552,"Bibliographic Coupling Network",   "Normalized"),
-    ("bibliographic_coupling_r0_d0.pkl",      3334.0, "Bibliographic Coupling Network",   "Raw"),
-    ("concept_cooccurrence_norm_c0_d0.pkl",   1.6592, "Concept Co-occurrence Network",    "Normalized"),
-    ("concept_cooccurrence_c0_d0.pkl",        129.0,  "Concept Co-occurrence Network",    "Raw"),
+    ("field_sharing_f0_d0.pkl",               0.0,    "Research Field Sharing Network",   "Raw"),
+    ("field_sharing_norm_f0_d0.pkl",          0.0,    "Research Field Sharing Network",   "Normalized"),
+    ("coauthorship_norm_w0_d0.pkl",           4.8167, "Co-authorship Network",            "Normalized"),
+    ("coauthorship_w0_d0.pkl",                96.0,   "Co-authorship Network",            "Raw"),
+    ("bibliographic_coupling_norm_r0_d0.pkl", 49.0459,"Bibliographic Coupling Network",   "Normalized"),
+    ("bibliographic_coupling_r0_d0.pkl",      3391.0, "Bibliographic Coupling Network",   "Raw"),
+    ("concept_cooccurrence_norm_c0_d0.pkl",   2.0,    "Concept Co-occurrence Network",    "Normalized"),
+    ("concept_cooccurrence_c0_d0.pkl",        176.0,  "Concept Co-occurrence Network",    "Raw"),
 ]
 
 
